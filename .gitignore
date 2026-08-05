@@ -1,0 +1,21 @@
+# ── Video files ───────────────────────────────────────────────
+# GitHub hard-rejects any single file over 100MB and warns above
+# 50MB, so the videos stay on your machine and out of the repo.
+# The site still plays them locally — only git ignores them.
+videos/*
+!videos/README.txt
+
+# Same for video dropped anywhere else in the project
+*.mp4
+*.m4v
+*.mov
+*.mkv
+*.webm
+*.avi
+*.wmv
+*.flv
+
+# ── OS / editor cruft ─────────────────────────────────────────
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SoodFlix</title>
+<meta name="description" content="SoodFlix — watch anywhere. Cancel anytime." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='Arial Black' fill='%23e50914'>S</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/browse.css" />
+<link rel="stylesheet" href="css/overlays.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SPLASH — the "ta-dum" intro wordmark
+     ══════════════════════════════════════════════════════════ -->
+<div id="splash" class="splash">
+  <span class="splash__word">SOODFLIX</span>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     PROFILE GATE — "Who's watching?"
+     ══════════════════════════════════════════════════════════ -->
+<section id="profileGate" class="profile-gate" hidden>
+  <header class="profile-gate__head">
+    <a class="brand brand--sm" href="#">SOODFLIX</a>
+  </header>
+  <div class="profile-gate__body">
+    <h1 class="profile-gate__title">Who's watching?</h1>
+    <ul class="profile-list" id="profileList"></ul>
+    <button class="btn-ghost" id="manageProfiles">Manage Profiles</button>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════
+     BROWSE
+     ══════════════════════════════════════════════════════════ -->
+<div id="browse" class="browse" hidden>
+
+  <!-- ── Top navigation ─────────────────────────────────────── -->
+  <header class="nav" id="nav">
+    <div class="nav__left">
+      <a class="brand" href="#" data-nav="home">SOODFLIX</a>
+      <nav class="nav__links" id="navLinks">
+        <a href="#" class="nav__link is-active" data-nav="home">Home</a>
+        <a href="#" class="nav__link" data-nav="series">TV Shows</a>
+        <a href="#" class="nav__link" data-nav="films">Movies</a>
+        <a href="#" class="nav__link" data-nav="new">New &amp; Popular</a>
+        <a href="#" class="nav__link" data-nav="mylist">My List</a>
+        <a href="#" class="nav__link" data-nav="languages">Browse by Languages</a>
+      </nav>
+
+      <!-- Collapsed nav for narrow screens -->
+      <div class="nav__dropdown" id="navDropdown">
+        <button class="nav__dropdown-btn" id="navDropdownBtn" aria-expanded="false">
+          Browse
+          <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.7 4.6 8.3 6 6.9l6 6 6-6 1.4 1.4z"/></svg>
+        </button>
+        <div class="nav__dropdown-menu" id="navDropdownMenu" hidden></div>
+      </div>
+    </div>
+
+    <div class="nav__right">
+      <!-- Search -->
+      <div class="search" id="search">
+        <button class="icon-btn" id="searchToggle" aria-label="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.3 3a8.3 8.3 0 1 0 5.1 14.85l3.87 3.87 1.42-1.42-3.87-3.87A8.3 8.3 0 0 0 13.3 3Zm-6.3 8.3a6.3 6.3 0 1 1 12.6 0 6.3 6.3 0 0 1-12.6 0Z"/></svg>
+        </button>
+        <input type="text" id="searchInput" class="search__input" placeholder="Titles, people, genres" aria-label="Search SoodFlix" />
+      </div>
+
+      <a href="#" class="nav__kids" data-nav="kids">Kids</a>
+
+      <!-- Notifications -->
+      <div class="notif" id="notif">
+        <button class="icon-btn" id="notifToggle" aria-label="Notifications" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v.67A7 7 0 0 1 19 11v4.2l1.7 2.55A1 1 0 0 1 19.87 19H15a3 3 0 0 1-6 0H4.13a1 1 0 0 1-.83-1.25L5 15.2V11a7 7 0 0 1 5.5-6.83V3.5A1.5 1.5 0 0 1 12 2Zm1 17h-2a1 1 0 0 0 2 0Z"/></svg>
+          <span class="notif__dot" id="notifDot"></span>
+        </button>
+        <div class="notif__panel" id="notifPanel" hidden>
+          <ul class="notif__list" id="notifList"></ul>
+        </div>
+      </div>
+
+      <!-- Account -->
+      <div class="account" id="account">
+        <button class="account__btn" id="accountBtn" aria-expanded="false">
+          <img class="account__avatar" id="accountAvatar" alt="Current profile" />
+          <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.7 4.6 8.3 6 6.9l6 6 6-6 1.4 1.4z"/></svg>
+        </button>
+        <div class="account__menu" id="accountMenu" hidden>
+          <ul class="account__profiles" id="accountProfiles"></ul>
+          <ul class="account__actions">
+            <li><button data-action="manage"><svg viewBox="0 0 24 24"><path d="M12 2 3 6v6c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V6l-9-4Zm0 6a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Zm0 11.9a7.6 7.6 0 0 1-4.3-3.2c.1-1.4 2.9-2.2 4.3-2.2s4.2.8 4.3 2.2A7.6 7.6 0 0 1 12 19.9Z"/></svg> Manage Profiles</button></li>
+            <li><button data-action="transfer"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-2h2v2Zm1.8-7.2-.9.92C13.16 11.44 13 12 13 13h-2v-.5c0-.83.34-1.58.88-2.12l1.24-1.26A2 2 0 1 0 10 7.5H8a4 4 0 1 1 6.8 2.3Z"/></svg> Transfer Profile</button></li>
+            <li><button data-action="account"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5Z"/></svg> Account</button></li>
+            <li><button data-action="help"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-2h2v2Zm1.8-7.2-.9.92C13.16 11.44 13 12 13 13h-2v-.5c0-.83.34-1.58.88-2.12l1.24-1.26A2 2 0 1 0 10 7.5H8a4 4 0 1 1 6.8 2.3Z"/></svg> Help Centre</button></li>
+          </ul>
+          <button class="account__signout" data-action="signout">Sign out of SoodFlix</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Billboard / recommendation carousel ─────────────────── -->
+  <section class="billboard" id="billboard" aria-roledescription="carousel" aria-label="Recommended for you">
+    <div class="billboard__slides" id="billboardSlides"></div>
+
+    <div class="billboard__fade-bottom"></div>
+
+    <div class="billboard__content" id="billboardContent"></div>
+
+    <button class="billboard__arrow billboard__arrow--prev" id="bbPrev" aria-label="Previous">
+      <svg viewBox="0 0 24 24"><path d="M15.4 4.6 7 13l8.4 8.4 1.4-1.4L9.8 13l7-7z"/></svg>
+    </button>
+    <button class="billboard__arrow billboard__arrow--next" id="bbNext" aria-label="Next">
+      <svg viewBox="0 0 24 24"><path d="M8.6 4.6 7.2 6l7 7-7 7 1.4 1.4L17 13z"/></svg>
+    </button>
+
+    <div class="billboard__dots" id="billboardDots" role="tablist"></div>
+  </section>
+
+  <!-- ── Content rows ────────────────────────────────────────── -->
+  <main class="rows" id="rows"></main>
+
+  <!-- ── Search results ──────────────────────────────────────── -->
+  <section class="results" id="results" hidden>
+    <h2 class="results__heading" id="resultsHeading"></h2>
+    <div class="results__grid" id="resultsGrid"></div>
+    <p class="results__empty" id="resultsEmpty" hidden>
+      Your search did not have any matches.
+      <span>Suggestions: Try different keywords · Try title, genre or cast names.</span>
+    </p>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────── -->
+  <footer class="footer">
+    <div class="footer__social">
+      <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z"/></svg></a>
+      <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2Zm0 5.8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 6.6a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Zm5.1-6.8a.94.94 0 1 1-1.9 0 .94.94 0 0 1 1.9 0Z"/></svg></a>
+      <a href="#" aria-label="X"><svg viewBox="0 0 24 24"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.3 22H3.2l7.3-8.3L2.5 2h6.5l4.4 5.9L18.9 2Zm-1.1 18.2h1.7L8.3 3.7H6.5l11.3 16.5Z"/></svg></a>
+      <a href="#" aria-label="YouTube"><svg viewBox="0 0 24 24"><path d="M23 12s0-3.4-.4-5a2.7 2.7 0 0 0-1.9-1.9C19 4.7 12 4.7 12 4.7s-7 0-8.7.4A2.7 2.7 0 0 0 1.4 7C1 8.6 1 12 1 12s0 3.4.4 5a2.7 2.7 0 0 0 1.9 1.9c1.7.4 8.7.4 8.7.4s7 0 8.7-.4a2.7 2.7 0 0 0 1.9-1.9c.4-1.6.4-5 .4-5ZM9.8 15.3V8.7l5.7 3.3-5.7 3.3Z"/></svg></a>
+    </div>
+    <nav class="footer__links">
+      <a href="#">Audio Description</a><a href="#">Help Centre</a><a href="#">Gift Cards</a><a href="#">Media Centre</a>
+      <a href="#">Investor Relations</a><a href="#">Jobs</a><a href="#">Terms of Use</a><a href="#">Privacy</a>
+      <a href="#">Legal Notices</a><a href="#">Cookie Preferences</a><a href="#">Corporate Information</a><a href="#">Contact Us</a>
+    </nav>
+    <button class="footer__code">Service Code</button>
+    <p class="footer__copy">© 1997-<span id="year"></span> Richard Li.</p>
+  </footer>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     TITLE DETAIL MODAL
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal-scrim" id="modalScrim" hidden>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Title details">
+    <button class="modal__close" id="modalClose" aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="m12 10.6 6.4-6.4 1.4 1.4-6.4 6.4 6.4 6.4-1.4 1.4-6.4-6.4-6.4 6.4-1.4-1.4 6.4-6.4-6.4-6.4 1.4-1.4z"/></svg>
+    </button>
+    <div class="modal__body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     VIDEO PLAYER
+     ══════════════════════════════════════════════════════════ -->
+<div class="player" id="player" hidden>
+  <video id="video" class="player__video" playsinline></video>
+
+  <div class="player__missing" id="playerMissing" hidden>
+    <h2>No video file attached yet</h2>
+    <p>Drop your file into <code>videos/</code> and set its <code>video:</code> path in <code>js/data.js</code>.</p>
+  </div>
+
+  <div class="player__ui" id="playerUI">
+    <div class="player__top">
+      <button class="player__back" id="playerBack" aria-label="Back to browse">
+        <svg viewBox="0 0 24 24"><path d="M15.4 4.6 7 13l8.4 8.4 1.4-1.4L9.8 13l7-7z"/></svg>
+      </button>
+      <div class="player__titles">
+        <span class="player__show" id="playerShow"></span>
+        <span class="player__ep" id="playerEp"></span>
+      </div>
+    </div>
+
+    <button class="player__bigplay" id="bigPlay" aria-label="Play">
+      <svg viewBox="0 0 24 24"><path d="M6 4.3 20 12 6 19.7z"/></svg>
+    </button>
+
+    <div class="player__bottom">
+      <div class="scrub" id="scrub">
+        <div class="scrub__track">
+          <div class="scrub__buffer" id="scrubBuffer"></div>
+          <div class="scrub__fill" id="scrubFill"><span class="scrub__knob"></span></div>
+        </div>
+        <span class="scrub__tip" id="scrubTip">0:00</span>
+      </div>
+
+      <div class="player__controls">
+        <div class="player__group">
+          <button class="pbtn" id="btnPlay" aria-label="Play/Pause">
+            <svg class="ico-play" viewBox="0 0 24 24"><path d="M6 4.3 20 12 6 19.7z"/></svg>
+            <svg class="ico-pause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+          </button>
+          <button class="pbtn" id="btnBack10" aria-label="Back 10 seconds">
+            <svg viewBox="0 0 24 24"><path d="M11 4V1L6.5 5.5 11 10V6.5a6 6 0 1 1-6 6H3a8 8 0 1 0 8-8.5z"/><text x="12" y="16" font-size="8" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg>
+          </button>
+          <button class="pbtn" id="btnFwd10" aria-label="Forward 10 seconds">
+            <svg viewBox="0 0 24 24"><path d="M13 4V1l4.5 4.5L13 10V6.5a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8.5z"/><text x="12" y="16" font-size="8" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg>
+          </button>
+          <div class="volume" id="volume">
+            <button class="pbtn" id="btnMute" aria-label="Mute">
+              <svg class="ico-vol" viewBox="0 0 24 24"><path d="M11 4 6 8H2v8h4l5 4V4Zm4.5 3.5a6 6 0 0 1 0 9l1.4 1.4a8 8 0 0 0 0-11.8L15.5 7.5Z"/></svg>
+              <svg class="ico-muted" viewBox="0 0 24 24"><path d="M11 4 6 8H2v8h4l5 4V4Zm10.7 4.3-1.4-1.4L18 9.2l-2.3-2.3-1.4 1.4L16.6 10.6l-2.3 2.3 1.4 1.4L18 12l2.3 2.3 1.4-1.4-2.3-2.3 2.3-2.3Z"/></svg>
+            </button>
+            <input type="range" id="volSlider" class="volume__slider" min="0" max="1" step="0.01" value="1" aria-label="Volume" />
+          </div>
+          <span class="player__time"><span id="timeNow">0:00</span> / <span id="timeTotal">0:00</span></span>
+        </div>
+
+        <div class="player__group player__group--center">
+          <span class="player__center-title" id="playerCenterTitle"></span>
+        </div>
+
+        <div class="player__group">
+          <button class="pbtn pbtn--label" id="btnNext" aria-label="Next episode">
+            <svg viewBox="0 0 24 24"><path d="M4 4.3 16 12 4 19.7zM18 4h2v16h-2z"/></svg>
+            <span class="pbtn__tip">Next Episode</span>
+          </button>
+          <button class="pbtn pbtn--label" id="btnEpisodes" aria-label="Episodes">
+            <svg viewBox="0 0 24 24"><path d="M3 5h12v2H3zm0 5h12v2H3zm0 5h9v2H3zM17 9l5 3.5L17 16z"/></svg>
+            <span class="pbtn__tip">Episodes</span>
+          </button>
+          <button class="pbtn" id="btnSpeed" aria-label="Playback speed"><span class="pbtn__speed">1x</span></button>
+          <button class="pbtn" id="btnPip" aria-label="Picture in picture">
+            <svg viewBox="0 0 24 24"><path d="M21 3H3a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1Zm-1 16H4V5h16v14Zm-2-8h-6v6h6v-6Z"/></svg>
+          </button>
+          <button class="pbtn" id="btnFull" aria-label="Full screen">
+            <svg class="ico-expand" viewBox="0 0 24 24"><path d="M3 3h8v2H5v6H3V3Zm18 0v8h-2V5h-6V3h8ZM3 13h2v6h6v2H3v-8Zm18 0v8h-8v-2h6v-6h2Z"/></svg>
+            <svg class="ico-collapse" viewBox="0 0 24 24"><path d="M11 3v8H3V9h6V3h2Zm10 6v2h-8V3h2v6h6ZM3 13h8v8H9v-6H3v-2Zm10 0h8v2h-6v6h-2v-8Z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Up-next card -->
+  <div class="upnext" id="upnext" hidden>
+    <p class="upnext__label">Next episode in <span id="upnextCount">10</span></p>
+    <div class="upnext__card" id="upnextCard"></div>
+    <div class="upnext__btns">
+      <button class="btn btn--light" id="upnextPlay">Play</button>
+      <button class="btn btn--grey" id="upnextCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/player.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
