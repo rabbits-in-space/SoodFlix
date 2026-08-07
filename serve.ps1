@@ -37,6 +37,12 @@ $mime = @{
     '.mkv'  = 'video/x-matroska'
     '.mov'  = 'video/quicktime'
     '.mp3'  = 'audio/mpeg'
+    '.m4a'  = 'audio/mp4'
+    '.aac'  = 'audio/aac'
+    '.wav'  = 'audio/wav'
+    '.ogg'  = 'audio/ogg'
+    '.oga'  = 'audio/ogg'
+    '.flac' = 'audio/flac'
     '.vtt'  = 'text/vtt'
     '.woff2'= 'font/woff2'
 }

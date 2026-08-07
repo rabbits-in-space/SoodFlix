@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SoodFlix</title>
 <meta name="description" content="SoodFlix — watch anywhere. Cancel anytime." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='Arial Black' fill='%23e50914'>S</text></svg>" />
+<link rel="icon" type="image/png" href="images/favicon.png" />
+<link rel="apple-touch-icon" href="images/favicon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
@@ -18,7 +19,29 @@
 <!-- ══════════════════════════════════════════════════════════════
      SPLASH — the "ta-dum" intro wordmark
      ══════════════════════════════════════════════════════════ -->
-<div id="splash" class="splash">
+<!-- The "ta-dum". Source comes from SOODFLIX.introSound in js/data.js.
+     Deliberately outside #splash, which gets removed after 2.6s — the
+     sound can start later than that if the browser made us wait for a
+     click, and a longer clip should be free to finish. -->
+<audio id="introSound" preload="auto"></audio>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ENTER GATE — one click, which is what earns us permission to
+     play the intro sound. Without it browsers mute the first visit.
+     ══════════════════════════════════════════════════════════ -->
+<section id="enterGate" class="enter">
+  <div class="enter__inner">
+    <button class="enter__btn" id="enterBtn" aria-label="Initialize SoodFlix">
+      <span class="enter__ring"></span>
+      <span class="enter__ring enter__ring--slow"></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.3 20 12 6 19.7z"/></svg>
+    </button>
+    <p class="enter__label">Initialize</p>
+    <p class="enter__hint">Sound on for the full experience</p>
+  </div>
+</section>
+
+<div id="splash" class="splash" hidden>
   <span class="splash__word">SOODFLIX</span>
 </div>
 
@@ -30,9 +53,55 @@
     <a class="brand brand--sm" href="#">SOODFLIX</a>
   </header>
   <div class="profile-gate__body">
-    <h1 class="profile-gate__title">Who's watching?</h1>
+    <h1 class="profile-gate__title" id="gateTitle">Who's watching?</h1>
     <ul class="profile-list" id="profileList"></ul>
     <button class="btn-ghost" id="manageProfiles">Manage Profiles</button>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════
+     PROFILE EDITOR — add / rename / delete, saved to localStorage
+     ══════════════════════════════════════════════════════════ -->
+<section id="profileEditor" class="profile-gate" hidden>
+  <header class="profile-gate__head">
+    <a class="brand brand--sm" href="#">SOODFLIX</a>
+  </header>
+  <div class="profile-gate__body">
+    <h1 class="profile-gate__title" id="editorTitle">Add Profile</h1>
+    <p class="editor__lead" id="editorLead">Add a profile for another person watching SoodFlix.</p>
+
+    <form class="editor" id="editorForm" novalidate>
+      <div class="editor__row">
+        <div class="editor__avatar">
+          <img id="editorAvatar" alt="" />
+        </div>
+        <div class="editor__fields">
+          <label class="editor__label" for="editorName">Name</label>
+          <input class="editor__input" id="editorName" type="text" maxlength="20"
+                 autocomplete="off" placeholder="Name" required />
+          <p class="editor__error" id="editorError" hidden></p>
+
+          <label class="editor__check">
+            <input type="checkbox" id="editorKids" />
+            <span>
+              <b>Kids profile</b>
+              Only shows titles rated U and PG.
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <fieldset class="editor__colours">
+        <legend class="editor__label">Avatar colour</legend>
+        <div class="editor__swatches" id="editorSwatches"></div>
+      </fieldset>
+
+      <div class="editor__actions">
+        <button type="submit" class="btn btn--light" id="editorSave">Save</button>
+        <button type="button" class="btn-ghost editor__cancel" id="editorCancel">Cancel</button>
+        <button type="button" class="btn-ghost editor__delete" id="editorDelete" hidden>Delete Profile</button>
+      </div>
+    </form>
   </div>
 </section>
 
@@ -75,17 +144,6 @@
 
       <a href="#" class="nav__kids" data-nav="kids">Kids</a>
 
-      <!-- Notifications -->
-      <div class="notif" id="notif">
-        <button class="icon-btn" id="notifToggle" aria-label="Notifications" aria-expanded="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v.67A7 7 0 0 1 19 11v4.2l1.7 2.55A1 1 0 0 1 19.87 19H15a3 3 0 0 1-6 0H4.13a1 1 0 0 1-.83-1.25L5 15.2V11a7 7 0 0 1 5.5-6.83V3.5A1.5 1.5 0 0 1 12 2Zm1 17h-2a1 1 0 0 0 2 0Z"/></svg>
-          <span class="notif__dot" id="notifDot"></span>
-        </button>
-        <div class="notif__panel" id="notifPanel" hidden>
-          <ul class="notif__list" id="notifList"></ul>
-        </div>
-      </div>
-
       <!-- Account -->
       <div class="account" id="account">
         <button class="account__btn" id="accountBtn" aria-expanded="false">
@@ -120,6 +178,9 @@
     <button class="billboard__arrow billboard__arrow--next" id="bbNext" aria-label="Next">
       <svg viewBox="0 0 24 24"><path d="M8.6 4.6 7.2 6l7 7-7 7 1.4 1.4L17 13z"/></svg>
     </button>
+
+    <!-- Trailer mute toggle + age rating, flush to the right edge -->
+    <div class="billboard__side" id="billboardSide"></div>
 
     <div class="billboard__dots" id="billboardDots" role="tablist"></div>
   </section>
@@ -266,6 +327,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/store.js"></script>
+<script src="js/preview.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/player.js"></script>
 <script src="js/app.js"></script>

@@ -34,15 +34,20 @@ const UI = (() => {
     return `background-image:linear-gradient(${angle}deg,${a},${b});`;
   }
 
-  /* Artwork block used by cards, the modal hero and the billboard. */
+  /* Artwork block used by cards, the modal hero and the billboard.
+
+     The gradient and title stamp are always drawn underneath, and
+     the real image is layered on top. If that image is missing or
+     misspelled it deletes itself on error and the gradient shows
+     through — so a wrong path costs you a nice tile, never a hole. */
   function art(item, { wide = false, cls = '' } = {}) {
     const src = wide ? (item.backdrop || item.poster) : (item.poster || item.backdrop);
-    if (src) return `<div class="${cls}" style="background-image:url('${src}')"></div>`;
-    return `<div class="${cls}" style="${artStyle(item)}">
+    return `<div class="${cls} art" style="${artStyle(item)}">
               <div class="card__stamp">
                 <b>${esc(item.title)}</b>
                 <small>${item.placeholder ? 'Placeholder' : 'SoodFlix'}</small>
               </div>
+              ${src ? `<img class="art__img" src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
             </div>`;
   }
 
@@ -121,9 +126,16 @@ const UI = (() => {
   function slide(item) {
     const el = document.createElement('div');
     el.className = 'billboard__slide';
+    el.setAttribute('style', artStyle(item));      // fallback underneath
     const src = item.backdrop || item.poster;
-    if (src) el.style.backgroundImage = `url('${src}')`;
-    else el.setAttribute('style', artStyle(item));
+    if (src) {
+      const img = document.createElement('img');
+      img.className = 'art__img';
+      img.src = src;
+      img.alt = '';
+      img.addEventListener('error', () => img.remove(), { once: true });
+      el.appendChild(img);
+    }
     return el;
   }
 

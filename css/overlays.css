@@ -96,6 +96,15 @@
 }
 .modal__btns { display: flex; align-items: center; gap: 10px; }
 
+.modal__top .preview__mute {
+  position: absolute;
+  right: 48px;
+  bottom: 9%;
+  z-index: 3;
+  width: 42px;
+  height: 42px;
+}
+
 .modal__grid {
   display: grid;
   grid-template-columns: 2fr 1fr;

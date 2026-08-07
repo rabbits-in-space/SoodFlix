@@ -143,6 +143,43 @@ ul { list-style: none; margin: 0; padding: 0; }
 .caret { width: 12px; height: 12px; transition: transform .25s ease; }
 [aria-expanded="true"] .caret { transform: rotate(180deg); }
 
+/* ── Artwork + trailer preview layers ─────────────────────────
+   Every artwork block stacks the same way:
+     gradient + title stamp  (the always-there fallback)
+     .art__img               (real artwork, removes itself on error)
+     .preview__video         (the trailer, fades in over the top)   */
+.art { position: relative; overflow: hidden; }
+
+.art__img,
+.preview__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview__video {
+  opacity: 0;
+  transition: opacity .5s ease;
+  pointer-events: none;
+}
+.preview__video.is-in { opacity: 1; }
+
+/* Mute toggle — appears only while a preview is actually playing */
+.preview__mute {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .6);
+  border-radius: 50%;
+  background: rgba(20, 20, 20, .45);
+  color: #fff;
+  transition: border-color .2s, background-color .2s;
+}
+.preview__mute svg { width: 55%; height: 55%; }
+.preview__mute:hover { border-color: #fff; background: rgba(40, 40, 40, .8); }
+
 /* Age / quality badges */
 .rating {
   padding: 2px 8px 3px;
@@ -166,6 +203,97 @@ ul { list-style: none; margin: 0; padding: 0; }
 .dot-sep { color: var(--text-dimmer); font-size: .6rem; }
 
 /* ── Splash ───────────────────────────────────────────────── */
+/* ── Enter gate ───────────────────────────────────────────────
+   Shown first. The click it collects is what allows the intro
+   sound to play, so the wordmark and audio can start together. */
+.enter {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 45%, #1b0407 0%, #000 62%);
+  /* Long and eased-out, so the gradient dissolves rather than snaps.
+     app.js reveals the black splash behind this before it starts. */
+  transition: opacity .75s cubic-bezier(.35, 0, .2, 1);
+}
+.enter.is-leaving { opacity: 0; pointer-events: none; }
+
+/* The button and label lead the exit slightly — they're gone before
+   the glow finishes dissolving, which reads smoother than everything
+   dimming together. */
+.enter.is-leaving .enter__inner {
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+
+.enter__inner {
+  display: grid;
+  justify-items: center;
+  gap: 24px;
+  animation: enterIn .9s var(--ease) both;
+}
+@keyframes enterIn { from { opacity: 0; transform: translateY(16px); } }
+
+.enter__btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(88px, 11vw, 116px);
+  aspect-ratio: 1;
+  padding-left: 6px;                 /* optically centres the triangle */
+  border: 0;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, .14);
+  color: var(--red);
+  transition: transform .25s var(--ease), background-color .25s,
+              color .25s, box-shadow .25s;
+}
+.enter__btn svg { width: 34%; height: 34%; }
+.enter__btn:hover,
+.enter__btn:focus-visible {
+  transform: scale(1.06);
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 0 60px rgba(229, 9, 20, .55);
+}
+.enter__btn:active { transform: scale(.97); }
+
+/* Two offset rings breathing outward */
+.enter__ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(229, 9, 20, .5);
+  border-radius: 50%;
+  animation: enterPulse 2.6s cubic-bezier(.2, .6, .3, 1) infinite;
+  pointer-events: none;
+}
+.enter__ring--slow { animation-delay: 1.3s; }
+@keyframes enterPulse {
+  0%   { transform: scale(1);    opacity: .75; }
+  65%  { transform: scale(1.55); opacity: 0; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+.enter__label {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+  letter-spacing: 9px;
+  text-indent: 9px;                  /* offsets the trailing letter-space */
+  color: #fff;
+}
+.enter__hint {
+  margin: 0;
+  font-size: .74rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #6d6d6d;
+}
+
+/* The wordmark animates in and then HOLDS. Both its entrance and its
+   exit are triggered from app.js — the entrance so it can start in
+   step with the audio, the exit so it can wait for it to finish. */
 .splash {
   position: fixed;
   inset: 0;
@@ -173,23 +301,84 @@ ul { list-style: none; margin: 0; padding: 0; }
   display: grid;
   place-items: center;
   background: #000;
-  animation: splashOut .5s ease 2.1s forwards;
+  /* The exit is a transition rather than an animation, so the slow
+     push-in below can keep running underneath it. */
+  transition: opacity .55s ease;
 }
+
+/* Starts invisible so revealing the black splash during the pause
+   doesn't flash a full-size logo before the animation begins.
+
+   The fill is two gradient layers clipped to the glyphs: flat red
+   underneath, and a highlight band that sweeps across on top. That
+   needs the text itself transparent — see the @supports guard below
+   in case background-clip:text ever isn't available. */
 .splash__word {
   font-family: var(--font-display);
   font-size: clamp(3rem, 13vw, 10rem);
   letter-spacing: 2px;
-  color: var(--red);
   text-shadow: 0 0 60px rgba(229, 9, 20, .55);
-  animation: splashIn 2.1s var(--ease) forwards;
+  opacity: 0;
+
+  color: transparent;
+  background-image:
+    linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, .8) 50%, transparent 60%),
+    linear-gradient(var(--red), var(--red));
+  background-size: 260% 100%, 100% 100%;
+  background-position: 180% 0, 0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
 }
-@keyframes splashIn {
-  0%   { transform: scale(.55); opacity: 0; letter-spacing: 26px; }
-  35%  { transform: scale(1);   opacity: 1; letter-spacing: 2px; }
-  75%  { transform: scale(1);   opacity: 1; }
-  100% { transform: scale(1.5); opacity: 0; }
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .splash__word { color: var(--red); background-image: none; }
 }
-@keyframes splashOut { to { opacity: 0; visibility: hidden; } }
+
+/* One continuous move, no loops: the wordmark fades in while rising
+   from below and scaling down to its final size, settles dead centre,
+   holds still for a beat, then takes a single highlight sweep in the
+   last second before the zoom-through.
+
+   Both timings come off --intro-hold, which app.js sets to the clip's
+   real length, so the choreography fits whatever mp3 you drop in:
+     rise   = hold - 2.8s
+     still  = 0.6s
+     sweep  = 1.8s, ending 0.4s before the end
+     settle = 0.4s before the zoom-through
+
+   The max() floors keep it sane if someone drops in a very short
+   clip — without them a 2.6s intro would ask for a negative rise. */
+.splash.is-running .splash__word {
+  animation:
+    splashRise  max(900ms, calc(var(--intro-hold, 2600ms) - 2800ms))
+                cubic-bezier(.16, .84, .3, 1) forwards,
+    splashSweep 1800ms ease-in-out
+                max(500ms, calc(var(--intro-hold, 2600ms) - 2200ms)) forwards;
+}
+
+@keyframes splashRise {
+  0%   { opacity: 0; transform: translateY(26vh) scale(1.6); letter-spacing: 16px; }
+  40%  { opacity: 1; }              /* longer, softer fade-in */
+  100% { opacity: 1; transform: translateY(0)   scale(1);   letter-spacing: 2px; }
+}
+
+/* A single pass. Ends parked off the left edge, so no highlight lingers. */
+@keyframes splashSweep {
+  from { background-position: 190% 0, 0 0; }
+  to   { background-position: -95% 0, 0 0; }
+}
+
+/* Exit — the Netflix zoom-through. Opacity on .splash is a transition,
+   so only the wordmark needs an animation here. */
+.splash.is-leaving { opacity: 0; }
+.splash.is-leaving .splash__word {
+  animation: splashZoom .6s var(--ease) forwards;
+}
+@keyframes splashZoom {
+  from { transform: scale(1);    opacity: 1; }
+  to   { transform: scale(1.55); opacity: 0; }
+}
 
 /* ── Profile gate ─────────────────────────────────────────── */
 .profile-gate { min-height: 100vh; background: var(--bg); }
@@ -205,45 +394,185 @@ ul { list-style: none; margin: 0; padding: 0; }
   font-size: clamp(1.9rem, 4.5vw, 3.4rem);
   font-weight: 400;
 }
+/* One tile size for every entry, avatars and "Add Profile" alike. */
 .profile-list {
+  --tile: clamp(84px, 12vw, 150px);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: flex-start;
   gap: clamp(14px, 3vw, 34px);
 }
 .profile-list li { text-align: center; }
 .profile-list button {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--tile);
   padding: 0;
   border: 0;
   background: none;
 }
-.profile-list img {
-  width: clamp(84px, 12vw, 150px);
-  aspect-ratio: 1;
+
+/* The tile itself — an avatar image or the + square.
+   position matters: the manage-mode pencil overlay anchors to this,
+   not to the list item, or it spills over the name below. */
+/* The radius is a percentage on purpose. The avatar artwork rounds its
+   own corners at 6% of its size, so a fixed pixel radius here made the
+   white selection border squarer than the picture inside it and left
+   gaps in the corners. At 8% the tile's clip always wins, and border
+   and artwork stay concentric at every tile size. */
+.profile-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--tile);
+  height: var(--tile);
   border: 3px solid transparent;
-  border-radius: 5px;
-  transition: border-color .2s;
+  border-radius: 8%;
+  overflow: hidden;
+  transition: border-color .2s, background-color .2s, color .2s;
 }
-.profile-list span {
-  display: block;
+.profile-tile img { width: 100%; height: 100%; object-fit: cover; }
+
+/* The + square: same footprint, glyph centred and large */
+.profile-tile--add {
+  background: #2b2b2b;
+  color: var(--text-dimmer);
+}
+.profile-tile--add svg {
+  width: 46%;
+  height: 46%;
+}
+
+/* Label sits under every tile, never inside one */
+.profile-name {
   margin-top: 12px;
   color: var(--text-dimmer);
   font-size: clamp(.85rem, 1.3vw, 1.2rem);
+  line-height: 1.3;
   transition: color .2s;
 }
-.profile-list button:hover img  { border-color: #fff; }
-.profile-list button:hover span { color: #fff; }
 
-.profile-add {
+.profile-list button:hover .profile-tile { border-color: #fff; }
+.profile-list button:hover .profile-tile--add { background: #454545; color: #fff; }
+.profile-list button:hover .profile-name { color: #fff; }
+
+/* "Last watched" hint under the profile used previously */
+.profile-name small {
+  display: block;
+  margin-top: 3px;
+  font-size: .72em;
+  color: #6d6d6d;
+}
+
+/* Manage mode: pencil badge over each editable tile */
+.profile-edit-badge { display: none; }
+.profile-list.is-managing .profile-tile { border-color: #444; }
+.profile-list.is-managing .profile-edit-badge {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  width: clamp(84px, 12vw, 150px);
-  aspect-ratio: 1;
-  border-radius: 5px;
-  background: #2b2b2b;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+}
+.profile-list.is-managing .profile-edit-badge svg { width: 32%; height: 32%; }
+
+/* ── Profile editor ───────────────────────────────────────── */
+.editor__lead {
+  margin: -18px 0 30px;
   color: var(--text-dimmer);
-  font-size: 3rem;
+  font-size: 1.05rem;
+  text-align: center;
+}
+.editor {
+  width: min(620px, 92vw);
+  padding-top: 24px;
+  border-top: 1px solid #333;
+}
+.editor__row {
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+}
+.editor__avatar {
+  flex: none;
+  width: clamp(80px, 11vw, 130px);
+}
+.editor__avatar img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8%;      /* matches the artwork — see .profile-tile */
+}
+.editor__fields { flex: 1; min-width: 0; }
+
+.editor__label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-dimmer);
+  font-size: .9rem;
+}
+.editor__input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #666;
+  border-radius: 2px;
+  background: #666;
+  color: #fff;
+  font-size: 1.05rem;
+}
+.editor__input:focus { outline: none; border-color: #fff; }
+.editor__input::placeholder { color: #d2d2d2; }
+
+.editor__error {
+  margin: 8px 0 0;
+  color: #ffa00a;
+  font-size: .88rem;
+}
+
+.editor__check {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 22px;
+  cursor: pointer;
+}
+.editor__check input { width: 22px; height: 22px; flex: none; accent-color: var(--red); }
+.editor__check b { display: block; font-weight: 600; }
+.editor__check span { color: var(--text-dimmer); font-size: .92rem; line-height: 1.5; }
+
+.editor__colours { margin: 30px 0 0; padding: 0; border: 0; }
+.editor__swatches { display: flex; flex-wrap: wrap; gap: 12px; }
+.editor__swatches button {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.editor__swatches button img { width: 100%; height: 100%; }
+.editor__swatches button.is-on { border-color: #fff; }
+.editor__swatches button:hover { border-color: #b3b3b3; }
+
+.editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: 1px solid #333;
+}
+.editor__actions .btn-ghost { margin-top: 0; }
+.editor__delete { margin-left: auto; }
+.editor__delete:hover { color: #fff; border-color: var(--red); background: var(--red); }
+
+@media (max-width: 560px) {
+  .editor__row { flex-direction: column; align-items: center; }
+  .editor__fields { width: 100%; }
+  .editor__delete { margin-left: 0; }
 }
 
 /* ── Footer ───────────────────────────────────────────────── */

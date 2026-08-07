@@ -14,57 +14,364 @@
     .forEach((item) => INDEX.set(item.id, item));
 
   const byId  = (id) => INDEX.get(id);
-  const pool  = () => [...INDEX.values()];
   const touch = window.matchMedia('(max-width: 620px)');
 
+  /* A kids profile only ever sees U and PG, everywhere — rows,
+     search, billboard and "More Like This" all draw from here. */
+  const KIDS_RATINGS = ['U', 'PG'];
+  const allowed = (i) =>
+    !profile || !profile.kids || KIDS_RATINGS.includes(i.rating);
+
+  const pool = () => [...INDEX.values()].filter(allowed);
+
   let view = 'home';
-  let profile = SOODFLIX.profiles[0];
+  let profile = null;          // set once a profile is chosen
 
   /* ═══════════════════════════════════════════════════════════
      BOOT
      ═══════════════════════════════════════════════════════ */
   $('year').textContent = new Date().getFullYear();
 
-  setTimeout(() => {
-    $('splash').remove();
-    showProfileGate();
-  }, 2600);
+  /* ── Splash + intro sound ─────────────────────────────────────
+     The wordmark holds until the intro sound finishes, so the two
+     stay in sync however long your mp3 is. Nothing to configure.
 
-  /* ── Profile gate ─────────────────────────────────────────── */
-  function showProfileGate() {
-    const list = $('profileList');
-    list.innerHTML = '';
-    SOODFLIX.profiles.forEach((p) => {
-      const li = document.createElement('li');
-      li.innerHTML = `<button><img src="${p.avatar}" alt=""><span>${UI.esc(p.name)}</span></button>`;
-      li.querySelector('button').addEventListener('click', () => enter(p));
-      list.appendChild(li);
-    });
+     Three things can end it, whichever comes first:
+       · the sound finishing            (the intended path)
+       · SPLASH_MIN, if there's no sound, the file is missing, or
+         the browser refuses to autoplay it
+       · SPLASH_MAX, a safety net so a long or stalled file can
+         never strand anyone on a black screen
+     ---------------------------------------------------------- */
+  const SPLASH_MIN = 2600;      // never shorter than this
+  const SPLASH_MAX = 15000;     // never longer, whatever happens
+  const ENTER_FADE = 750;       // enter gate cross-fading to black
+  const BEAT = 750;             // the held black beat before the logo
+  const SYNC_GRACE = 600;       // longest we'll wait on audio to start
 
-    const add = document.createElement('li');
-    add.innerHTML = `<button><span class="profile-add">+</span><span>Add Profile</span></button>`;
-    add.querySelector('button').addEventListener('click', () => toast('Profile management is a placeholder.'));
-    list.appendChild(add);
+  let splashStart = 0;          // set the moment the wordmark begins
+  let splashEnding = false;
 
+  function endSplash() {
+    if (splashEnding) return;
+    splashEnding = true;
+
+    /* A very short sound shouldn't cut the animation off mid-flight. */
+    const wait = Math.max(0, SPLASH_MIN - (Date.now() - splashStart));
+
+    setTimeout(() => {
+      const el = $('splash');
+      if (!el) { showProfileGate(); return; }
+      el.classList.add('is-leaving');
+      setTimeout(() => { el.remove(); showProfileGate(); }, 560);
+    }, wait);
+  }
+
+  /* ── The sequence ─────────────────────────────────────────────
+     enter gate → click → gate fades → held black beat → wordmark
+     and sound begin together → wordmark holds → sound ends → zoom
+     out → "Who's watching?"
+
+     Preloading the audio starts immediately so it's ready by the
+     time the beat is over and nothing has to buffer on screen. */
+  const audio = $('introSound');
+  if (SOODFLIX.introSound) {
+    audio.src = SOODFLIX.introSound;
+    audio.volume = SOODFLIX.introVolume ?? 0.7;
+    audio.load();
+  }
+
+  $('enterBtn').addEventListener('click', launch, { once: true });
+
+  /* Enter or Space anywhere works too, so you don't have to aim. */
+  document.addEventListener('keydown', function enterKey(e) {
+    if ($('enterGate') && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      document.removeEventListener('keydown', enterKey);
+      launch();
+    }
+  });
+
+  let launched = false;
+
+  function launch() {
+    if (launched) return;            // a click and an Enter can both land
+    launched = true;
+
+    /* Reveal the black splash UNDERNEATH before fading the gate. The
+       page behind is #141414 grey, so fading the gate out first left
+       the gradient dissolving to grey and then cutting to black —
+       that's the jump. Cross-fading straight onto black is smooth. */
+    $('splash').hidden = false;      // black, wordmark still invisible
+
+    const gate = $('enterGate');
+    gate.classList.add('is-leaving');
+
+    setTimeout(() => {
+      gate.remove();
+      setTimeout(startSplash, BEAT);   // let it sit for a moment
+    }, ENTER_FADE);
+  }
+
+  function startSplash() {
+    const splash = $('splash');
+    let begun = false;
+
+    /* The wordmark's entrance is triggered here rather than on page
+       load, so it can start on the audio's 'playing' event — that's
+       what actually keeps picture and sound together. */
+    function begin() {
+      if (begun) return;
+      begun = true;
+      splashStart = Date.now();
+
+      /* How long the wordmark holds: the clip's real length when we
+         know it, otherwise the fixed minimum. */
+      const ms = audio.duration * 1000;
+      const hold = (isFinite(ms) && ms > SPLASH_MIN) ? ms : SPLASH_MIN;
+
+      /* Hand the length to CSS so the slow push-in lasts exactly as
+         long as the sound does. */
+      splash.style.setProperty('--intro-hold', `${Math.round(hold)}ms`);
+      splash.classList.add('is-running');
+
+      /* Taper the sound into the transition instead of chopping it
+         off. Scaled down for short clips so a 2.6s intro isn't
+         fading for half its life. */
+      const fade = Math.min(1200, hold * 0.35);
+      setTimeout(() => fadeOutAudio(fade), Math.max(0, hold - fade));
+
+      setTimeout(endSplash, hold);
+      setTimeout(endSplash, SPLASH_MAX);          // backstop
+      audio.addEventListener('ended', endSplash, { once: true });
+      audio.addEventListener('error', endSplash, { once: true });
+    }
+
+    if (!SOODFLIX.introSound) { begin(); return; }
+
+    /* Start the picture the instant sound actually comes out. If the
+       audio never gets going — missing file, odd codec, a browser
+       that still says no — begin anyway rather than stall. */
+    audio.addEventListener('playing', begin, { once: true });
+    audio.play().catch(begin);
+    setTimeout(begin, SYNC_GRACE);
+  }
+
+  /* Ramp the volume down rather than stopping dead.
+
+     Deliberately an interval rather than requestAnimationFrame:
+     rAF stops entirely in a background tab, which would leave the
+     sound at full volume and never pause it. Progress comes from
+     timestamps, so throttled ticks still finish on time. */
+  function fadeOutAudio(ms) {
+    if (!audio || audio.paused) return;
+
+    const from = audio.volume;
+    const t0 = Date.now();
+
+    const tick = setInterval(() => {
+      const k = Math.min(1, (Date.now() - t0) / ms);
+      audio.volume = Math.max(0, from * (1 - k));
+      if (k >= 1) {
+        clearInterval(tick);
+        audio.pause();
+      }
+    }, 40);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     PROFILES
+     The list is persisted by Store, so one added here is still
+     here next visit. data.js only seeds the very first load.
+     ═══════════════════════════════════════════════════════ */
+  const ICON_PLUS_BIG = '<svg viewBox="0 0 24 24"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z"/></svg>';
+  const ICON_PENCIL = '<svg viewBox="0 0 24 24"><path d="M3 17.25 13.9 6.35l3.75 3.75L6.75 21H3v-3.75Zm16.7-9.6-1.9-1.9 1.2-1.2a1 1 0 0 1 1.4 0l1.1 1.1a1 1 0 0 1 0 1.4l-1.2 1.2Z"/></svg>';
+
+  let managing = false;
+
+  const profiles = () => Store.getProfiles(SOODFLIX.profiles);
+
+  function showProfileGate(manage = false) {
+    managing = manage;
+    renderProfileGate();
+    $('profileEditor').hidden = true;
     $('profileGate').hidden = false;
     $('browse').hidden = true;
   }
 
-  $('manageProfiles').addEventListener('click', () => toast('Profile management is a placeholder.'));
+  function renderProfileGate() {
+    const list = $('profileList');
+    const lastId = Store.getLastProfileId();
+
+    $('gateTitle').textContent = managing ? 'Manage Profiles' : "Who's watching?";
+    $('manageProfiles').textContent = managing ? 'Done' : 'Manage Profiles';
+    list.classList.toggle('is-managing', managing);
+    list.innerHTML = '';
+
+    profiles().forEach((p) => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <button type="button">
+          <span class="profile-tile">
+            <img src="${p.avatar}" alt="" />
+            <span class="profile-edit-badge">${ICON_PENCIL}</span>
+          </span>
+          <span class="profile-name">${UI.esc(p.name)}${
+            !managing && p.id === lastId ? '<small>Last watched</small>' : ''
+          }</span>
+        </button>`;
+      li.querySelector('button').addEventListener('click', () =>
+        managing ? openEditor(p) : enter(p));
+      list.appendChild(li);
+    });
+
+    /* Add Profile uses exactly the same tile markup, so it lines up
+       with the avatars instead of drifting out of the row. */
+    const add = document.createElement('li');
+    add.innerHTML = `
+      <button type="button">
+        <span class="profile-tile profile-tile--add">${ICON_PLUS_BIG}</span>
+        <span class="profile-name">Add Profile</span>
+      </button>`;
+    add.querySelector('button').addEventListener('click', () => openEditor(null));
+    list.appendChild(add);
+  }
+
+  $('manageProfiles').addEventListener('click', () => {
+    managing = !managing;
+    renderProfileGate();
+  });
 
   function enter(p) {
     profile = p;
     Store.setProfileId(p.id);
     $('accountAvatar').src = p.avatar;
     $('profileGate').hidden = true;
+    $('profileEditor').hidden = true;
     $('browse').hidden = false;
     window.scrollTo(0, 0);
     buildBillboard();
     render();
-    buildNotifications();
     buildAccountMenu();
     buildNavDropdown();
   }
+
+  /* ── Profile editor ───────────────────────────────────────── */
+  let editing = null;          // the profile being edited, null when adding
+  let chosenColour = 0;
+
+  function openEditor(p) {
+    editing = p;
+    chosenColour = 0;
+
+    if (p) {
+      /* Land on the colour this profile already uses, if we can tell. */
+      const i = AVATAR_COLOURS.findIndex((c) => p.avatar === avatar(c[0], c[1]));
+      chosenColour = i === -1 ? 0 : i;
+    }
+
+    $('editorTitle').textContent = p ? 'Edit Profile' : 'Add Profile';
+    $('editorLead').textContent = p
+      ? 'Change the name, colour or kids setting for this profile.'
+      : 'Add a profile for another person watching SoodFlix.';
+    $('editorName').value = p ? p.name : '';
+    $('editorKids').checked = p ? !!p.kids : false;
+    $('editorDelete').hidden = !p || profiles().length <= 1;
+    $('editorError').hidden = true;
+
+    renderSwatches();
+    paintEditorAvatar();
+
+    $('profileGate').hidden = true;
+    $('profileEditor').hidden = false;
+    $('editorName').focus();
+  }
+
+  function renderSwatches() {
+    const box = $('editorSwatches');
+    box.innerHTML = '';
+    AVATAR_COLOURS.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = i === chosenColour ? 'is-on' : '';
+      b.setAttribute('aria-label', `Avatar colour ${i + 1}`);
+      b.innerHTML = `<img src="${avatar(c[0], c[1])}" alt="" />`;
+      b.addEventListener('click', () => {
+        chosenColour = i;
+        renderSwatches();
+        paintEditorAvatar();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function paintEditorAvatar() {
+    const c = AVATAR_COLOURS[chosenColour];
+    $('editorAvatar').src = avatar(c[0], c[1]);
+  }
+
+  $('editorForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const name = $('editorName').value.trim();
+    const err = $('editorError');
+
+    if (!name) {
+      err.textContent = 'Please enter a name.';
+      err.hidden = false;
+      $('editorName').focus();
+      return;
+    }
+    const clash = profiles().some((p) =>
+      p.name.toLowerCase() === name.toLowerCase() && (!editing || p.id !== editing.id));
+    if (clash) {
+      err.textContent = 'You already have a profile with that name.';
+      err.hidden = false;
+      $('editorName').focus();
+      return;
+    }
+
+    const c = AVATAR_COLOURS[chosenColour];
+    const fields = { name, avatar: avatar(c[0], c[1]), kids: $('editorKids').checked };
+
+    if (editing) {
+      const updated = Store.updateProfile(editing.id, fields);
+      /* Editing the profile you're signed in as should update the nav. */
+      if (profile && profile.id === updated.id) {
+        profile = updated;
+        $('accountAvatar').src = updated.avatar;
+        render();
+      }
+      toast(`Saved ${updated.name}`);
+    } else {
+      Store.addProfile(fields);
+      toast(`Added ${name}`);
+    }
+
+    editing = null;
+    managing = false;
+    showProfileGate();
+  });
+
+  $('editorCancel').addEventListener('click', () => {
+    editing = null;
+    showProfileGate();
+  });
+
+  $('editorDelete').addEventListener('click', () => {
+    if (!editing) return;
+    const name = editing.name;
+    if (!window.confirm(`Delete ${name}? Their watch history and My List will be removed.`)) return;
+
+    const wasCurrent = profile && profile.id === editing.id;
+    Store.removeProfile(editing.id);
+    editing = null;
+    managing = false;
+    toast(`Deleted ${name}`);
+
+    if (wasCurrent) profile = null;
+    showProfileGate();
+  });
 
   /* ═══════════════════════════════════════════════════════════
      NAV
@@ -135,36 +442,17 @@
         .join(' ').toLowerCase().includes(needle));
   }
 
-  /* ── Notifications ────────────────────────────────────────── */
-  function buildNotifications() {
-    $('notifList').innerHTML = SOODFLIX.notifications.map((n) => {
-      const sample = pool()[Math.floor(Math.random() * 8)];
-      return `<li>
-          <div style="width:100px;aspect-ratio:16/9;border-radius:2px;${UI.artStyle(sample)}"></div>
-          <div><p class="notif__title">${UI.esc(n.title)}</p><span class="notif__time">${UI.esc(n.time)}</span></div>
-        </li>`;
-    }).join('');
-  }
-
-  $('notifToggle').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = $('notifPanel').hidden;
-    closeMenus();
-    $('notifPanel').hidden = !open;
-    $('notifToggle').setAttribute('aria-expanded', String(open));
-    if (open) $('notifDot').style.display = 'none';
-  });
-
   /* ── Account menu ─────────────────────────────────────────── */
   function buildAccountMenu() {
-    $('accountProfiles').innerHTML = SOODFLIX.profiles
-      .filter((p) => p.id !== profile.id)
+    const others = profiles().filter((p) => p.id !== profile.id);
+
+    $('accountProfiles').innerHTML = others
       .map((p) => `<li><button data-profile="${p.id}"><img src="${p.avatar}" alt=""><span>${UI.esc(p.name)}</span></button></li>`)
       .join('');
 
     $('accountProfiles').querySelectorAll('[data-profile]').forEach((b) =>
       b.addEventListener('click', () => {
-        enter(SOODFLIX.profiles.find((p) => p.id === b.dataset.profile));
+        enter(profiles().find((p) => p.id === b.dataset.profile));
         closeMenus();
       }));
   }
@@ -181,21 +469,29 @@
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     closeMenus();
-    if (btn.dataset.action === 'signout') { Store.clearProfile(); showProfileGate(); }
-    else toast('That screen is a placeholder.');
+
+    switch (btn.dataset.action) {
+      case 'signout':
+        Store.clearProfile();
+        showProfileGate();
+        break;
+      case 'manage':
+        showProfileGate(true);
+        break;
+      default:
+        toast('That screen is a placeholder.');
+    }
   });
 
   function closeMenus() {
     $('accountMenu').hidden = true;
-    $('notifPanel').hidden = true;
     $('navDropdownMenu').hidden = true;
     $('accountBtn').setAttribute('aria-expanded', 'false');
-    $('notifToggle').setAttribute('aria-expanded', 'false');
     $('navDropdownBtn').setAttribute('aria-expanded', 'false');
   }
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.account, .notif, .nav__dropdown')) closeMenus();
+    if (!e.target.closest('.account, .nav__dropdown')) closeMenus();
     if (!e.target.closest('.search') && !searchInput.value) searchBox.classList.remove('is-open');
   });
 
@@ -205,6 +501,14 @@
   let bbIndex = 0;
   let bbTimer = null;
   let bbWired = false;
+  let bbStopPreview = null;
+
+  /* Featured list the current profile is allowed to see. Kept as a
+     function because switching profiles can change it. */
+  function featured() {
+    const ok = SOODFLIX.featured.filter(allowed);
+    return ok.length ? ok : SOODFLIX.featured.slice(0, 1);
+  }
 
   function buildBillboard() {
     const slides = $('billboardSlides');
@@ -212,7 +516,7 @@
     slides.innerHTML = '';
     dots.innerHTML = '';
 
-    SOODFLIX.featured.forEach((item, i) => {
+    featured().forEach((item, i) => {
       slides.appendChild(UI.slide(item));
       const dot = document.createElement('button');
       dot.setAttribute('role', 'tab');
@@ -235,7 +539,7 @@
     $('billboardContent').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
-      const item = SOODFLIX.featured[bbIndex];
+      const item = featured()[bbIndex];
       if (btn.dataset.act === 'play') play(item);
       else openModal(item);
     });
@@ -246,16 +550,33 @@
   }
 
   function showSlide(i) {
-    const n = SOODFLIX.featured.length;
+    const list = featured();
+    const n = list.length;
     bbIndex = (i + n) % n;
+    const item = list[bbIndex];
 
-    [...$('billboardSlides').children].forEach((s, k) =>
-      s.classList.toggle('is-active', k === bbIndex));
+    if (bbStopPreview) { bbStopPreview(); bbStopPreview = null; }
+
+    const slides = [...$('billboardSlides').children];
+    slides.forEach((s, k) => s.classList.toggle('is-active', k === bbIndex));
     [...$('billboardDots').children].forEach((d, k) =>
       d.classList.toggle('is-active', k === bbIndex));
 
-    $('billboardContent').innerHTML = UI.billboardCopy(SOODFLIX.featured[bbIndex]);
+    $('billboardContent').innerHTML = UI.billboardCopy(item);
+    $('billboardSide').innerHTML =
+      `<span class="bb__side-rating">${UI.esc(item.rating || 'PG')}</span>`;
     restartBillboard();
+
+    /* The trailer takes over a few seconds in, and holds the carousel
+       until it finishes — the same way Netflix stops rotating while
+       a preview is running. */
+    bbStopPreview = Preview.play(slides[bbIndex], item, {
+      delay: 4000,
+      loop: false,
+      buttonHost: $('billboardSide'),
+      onStart: () => clearInterval(bbTimer),
+      onEnd: restartBillboard,
+    });
   }
 
   function restartBillboard() {
@@ -295,6 +616,11 @@
     }
   }
 
+  /* Strip anything the current profile isn't allowed to see. */
+  function gate(rows) {
+    return rows.map((r) => ({ ...r, items: (r.items || []).filter(allowed) }));
+  }
+
   /* Split a pool into a few themed rows so a filtered view still
      looks like Netflix rather than one long shelf. */
   function chunkRows(items, titles) {
@@ -315,7 +641,7 @@
       const items = watched.filter((i) => !seen.has(i.id) && seen.add(i.id));
       return {
         ...def,
-        title: def.title.replace('{profile}', profile.name),
+        title: def.title.replace('{profile}', profile ? profile.name : 'you'),
         /* Nothing watched yet — keep the authored placeholders visible
            so the row doesn't disappear on a fresh install. */
         items: items.length ? items : def.items,
@@ -342,7 +668,7 @@
     container.innerHTML = '';
     container.style.paddingTop = view === 'home' ? '' : 'calc(var(--nav-h) + 40px)';
 
-    const rows = rowsForView().filter((r) => r.items.length || r.empty);
+    const rows = gate(rowsForView()).filter((r) => r.items.length || r.empty);
     if (!rows.length) {
       container.innerHTML = `<p class="row__hint" style="padding-top:40px">Nothing here yet.</p>`;
       return;
@@ -437,18 +763,28 @@
 
       if (!touch.matches) {
         const row = card.closest('.row');
+        let stopPreview = null;
+
         card.addEventListener('mouseenter', () => {
           timer = setTimeout(() => {
             card.classList.add('is-hovered');
             /* Raise the row too, or the expanded card paints behind
                the next row — see .row.is-lifted in browse.css. */
             if (row) row.classList.add('is-lifted');
+
+            /* Trailer starts a beat after the card has finished
+               opening, so a quick sweep of the mouse never triggers it. */
+            stopPreview = Preview.play(qs('.card__art', card), byId(card.dataset.id), {
+              delay: 500,
+            });
           }, 380);
         });
+
         card.addEventListener('mouseleave', () => {
           clearTimeout(timer);
           card.classList.remove('is-hovered');
           if (row) row.classList.remove('is-lifted');
+          if (stopPreview) { stopPreview(); stopPreview = null; }
         });
       }
 
@@ -476,6 +812,7 @@
   }
 
   function play(item, index) {
+    Preview.stopAll();          // no trailer murmuring under the player
     const it = withEpisodes(item);
     Player.open(it, index !== undefined ? index : (it.episodes.length ? 0 : -1));
   }
@@ -526,16 +863,26 @@
      DETAIL MODAL
      ═══════════════════════════════════════════════════════ */
   const scrim = $('modalScrim');
+  let modalStopPreview = null;
 
   function openModal(item) {
     const similar = pool()
       .filter((i) => i.id !== item.id && !SOODFLIX.featured.includes(i))
       .slice(0, 6);
 
+    /* Nothing behind the modal should keep playing. */
+    Preview.stopAll();
+    modalStopPreview = null;
+
     $('modalBody').innerHTML = UI.modal(item, similar);
     scrim.hidden = false;
     document.body.classList.add('is-locked');
     scrim.scrollTop = 0;
+
+    modalStopPreview = Preview.play(qs('.modal__hero', $('modalBody')), item, {
+      delay: 1200,
+      buttonHost: qs('.modal__top', $('modalBody')),
+    });
 
     $('modalBody').onclick = (e) => {
       const act = e.target.closest('[data-act]');
@@ -563,6 +910,7 @@
   }
 
   function closeModal() {
+    if (modalStopPreview) { modalStopPreview(); modalStopPreview = null; }
     scrim.hidden = true;
     $('modalBody').innerHTML = '';
     if (!Player.isOpen) document.body.classList.remove('is-locked');

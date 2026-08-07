@@ -7,6 +7,21 @@
    2. Put a thumbnail in      images/     (16:9 works best)
    3. Fill in an entry below.
 
+   ── THE FAST WAY ────────────────────────────────────────────────
+   Name your files after one slug and let media() wire them up:
+
+       videos/holiday.mp4          ← the film
+       videos/holiday-trailer.mp4  ← hover / billboard preview
+       images/holiday.jpg          ← card artwork
+       images/holiday-wide.jpg     ← billboard backdrop
+
+       { id: 'holiday', title: 'Holiday 2026', ...media('holiday') }
+
+   Files you haven't made yet are simply ignored — a missing image
+   falls back to the generated gradient tile, a missing trailer just
+   means no preview. Nothing breaks, so you can add media over time.
+
+   ── THE EXPLICIT WAY ────────────────────────────────────────────
    A title looks like this — every field except id/title is optional:
 
      {
@@ -14,6 +29,7 @@
        title:    'My Show',
        kind:     'series',                  // 'series' or 'film'
        video:    'videos/my-show.mp4',      // the file that plays
+       trailer:  'videos/my-show-trailer.mp4',  // muted hover preview
        poster:   'images/my-show.jpg',      // card + modal artwork
        backdrop: 'images/my-show-wide.jpg', // optional, for the billboard
        year:     2026,
@@ -36,6 +52,30 @@
    ═══════════════════════════════════════════════════════════ */
 
 
+/* ── Media by naming convention ────────────────────────────────
+   Spread this into a title to point at all four files at once:
+
+       { id: 'holiday', title: 'Holiday 2026', ...media('holiday') }
+
+   Override any single one afterwards if a file doesn't fit the
+   pattern — later keys win:
+
+       { ...media('holiday'), trailer: 'videos/teaser-cut.mp4' }
+
+   Use a different extension with the second argument:
+
+       ...media('holiday', 'webm')
+   ---------------------------------------------------------- */
+function media(slug, ext = 'mp4') {
+  return {
+    video:    `videos/${slug}.${ext}`,
+    trailer:  `videos/${slug}-trailer.${ext}`,
+    poster:   `images/${slug}.jpg`,
+    backdrop: `images/${slug}-wide.jpg`,
+  };
+}
+
+
 /* ── Placeholder factory ───────────────────────────────────────
    Generates the empty tiles you see before your own content is in.
    Delete a row's `items: placeholders(...)` and drop your real
@@ -51,6 +91,7 @@ function placeholders(prefix, count, opts = {}) {
     kind: opts.kind || (i % 3 === 0 ? 'film' : 'series'),
     placeholder: true,
     video: '',
+    trailer: '',
     poster: '',
     year: 2024 + (i % 3),
     rating: ['U', 'PG', '12', '15', '18'][i % 5],
@@ -76,10 +117,35 @@ function avatar(bg, face) {
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
+/* The colours offered when creating or editing a profile.
+   [background, silhouette] ---------------------------------- */
+const AVATAR_COLOURS = [
+  ['#e50914', '#2b0508'], ['#2d9cdb', '#0b2c3f'], ['#f2c94c', '#4a3a06'],
+  ['#27ae60', '#08301a'], ['#9b51e0', '#2a0f45'], ['#f2994a', '#452405'],
+  ['#eb5757', '#3d0d0d'], ['#56ccf2', '#0a3040'],
+];
+
 
 const SOODFLIX = {
 
-  /* ── Profiles ─────────────────────────────────────────────── */
+  /* ── Intro sound ──────────────────────────────────────────────
+     The "ta-dum" that plays with the splash wordmark.
+
+     Drop an mp3 into audio/ and name it here. Around 2.5 seconds
+     matches the splash animation. Leave it '' for silence.
+
+     Note: browsers refuse to autoplay audio until someone has
+     interacted with the page, so on a first-ever visit it usually
+     waits for the first click instead. That's a browser rule, not
+     a bug — see audio/README.txt. -------------------------- */
+  introSound: 'audio/intro.mp3',
+  introVolume: 0.7,          // 0 to 1
+
+  /* ── Starting profiles ────────────────────────────────────────
+     Used only the first time someone opens the site. After that the
+     list lives in localStorage, so profiles added in the browser
+     persist and editing this array won't disturb them.
+     (Clear site data to reset back to these.) ---------------- */
   profiles: [
     { id: 'p1', name: 'Sood',    avatar: avatar('#e50914', '#2b0508') },
     { id: 'p2', name: 'Guest',   avatar: avatar('#2d9cdb', '#0b2c3f') },
@@ -96,14 +162,14 @@ const SOODFLIX = {
     {
       id: 'feat-1',
       title: 'Day in the life of Sood',
-      kind: 'series',
+      kind: 'movie',
       placeholder: true,
-      video: '', backdrop: '',
+      video: '', trailer: '', backdrop: '',
       rank: 1,
-      year: 2026, rating: '15', duration: '1 Season',
+      year: 2026, rating: 'PG', duration: 'Single movie',
       match: 98,
       genres: ['Drama', 'Mystery'],
-      cast: ['—'],
+      cast: ['Aiden Starr, Kian Sood, Declan Finney, Benji Moore'],
       desc: 'The premiering movie Day in the life of Sood is a gripping tale of a White boy who turns Indian. ',
       episodes: [],
     },
@@ -112,7 +178,7 @@ const SOODFLIX = {
       title: 'Much ado about Soody',
       kind: 'film',
       placeholder: true,
-      video: '', backdrop: '',
+      video: '', trailer: '', backdrop: '',
       year: 2025, rating: '12', duration: '1h 52m',
       match: 95,
       genres: ['Action', 'Adventure'],
@@ -125,7 +191,7 @@ const SOODFLIX = {
       title: 'Sood Lasso',
       kind: 'series',
       placeholder: true,
-      video: '', backdrop: '',
+      video: '', trailer: '', backdrop: '',
       rank: 4,
       year: 2026, rating: 'PG', duration: '3 Seasons',
       match: 91,
@@ -139,7 +205,7 @@ const SOODFLIX = {
       title: 'Fourth Feature',
       kind: 'film',
       placeholder: true,
-      video: '', backdrop: '',
+      video: '', trailer: '', backdrop: '',
       year: 2024, rating: '18', duration: '2h 04m',
       match: 88,
       genres: ['Thriller', 'Dark'],
@@ -152,7 +218,7 @@ const SOODFLIX = {
       title: 'Fifth Feature',
       kind: 'series',
       placeholder: true,
-      video: '', backdrop: '',
+      video: '', trailer: '', backdrop: '',
       year: 2026, rating: 'U', duration: '2 Seasons',
       match: 84,
       genres: ['Documentary', 'Inspiring'],
@@ -226,13 +292,6 @@ const SOODFLIX = {
       type: 'mylist',
       items: [],
     },
-  ],
-
-  /* ── Notification bell contents ───────────────────────────── */
-  notifications: [
-    { title: 'New arrival: your first upload lands here', time: 'Now' },
-    { title: 'SoodFlix is ready — add videos in js/data.js', time: '1 day ago' },
-    { title: 'Top 10 refreshed for today', time: '3 days ago' },
   ],
 
   /* ── Languages menu (Browse by Languages) ─────────────────── */

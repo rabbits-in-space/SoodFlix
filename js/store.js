@@ -8,7 +8,12 @@
 const Store = (() => {
   const KEY = 'soodflix.v1';
 
-  const blank = () => ({ profileId: null, byProfile: {} });
+  const blank = () => ({
+    profileId: null,     // who is signed in right now
+    lastProfileId: null, // who was signed in last visit
+    profiles: null,      // null until seeded from data.js defaults
+    byProfile: {},
+  });
 
   let state = load();
 
@@ -37,10 +42,65 @@ const Store = (() => {
   }
 
   return {
-    /* ── Profile ────────────────────────────────────────────── */
+    /* ── Preview sound ──────────────────────────────────────────
+       Global, not per-profile: Netflix remembers whether you last
+       left trailer previews muted. Defaults to muted, because
+       browsers block autoplay with sound anyway. */
+    getPreviewMuted: () => state.previewMuted !== false,
+    setPreviewMuted(m) { state.previewMuted = !!m; save(); },
+
+    /* ── Profiles ─────────────────────────────────────────────────
+       The list itself is persisted, so one added in the browser is
+       still there next visit. data.js only supplies the starting set
+       the very first time someone opens the site. */
+    getProfiles(defaults) {
+      if (!state.profiles) {
+        state.profiles = (defaults || []).map((p) => ({ ...p }));
+        save();
+      }
+      return state.profiles.map((p) => ({ ...p }));
+    },
+
+    getProfile(id) {
+      const p = (state.profiles || []).find((x) => x.id === id);
+      return p ? { ...p } : null;
+    },
+
+    addProfile({ name, avatar, kids = false }) {
+      state.profiles ||= [];
+      const profile = {
+        id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name,
+        avatar,
+        kids: !!kids,
+      };
+      state.profiles.push(profile);
+      save();
+      return { ...profile };
+    },
+
+    updateProfile(id, changes) {
+      const p = (state.profiles || []).find((x) => x.id === id);
+      if (!p) return null;
+      Object.assign(p, changes);
+      save();
+      return { ...p };
+    },
+
+    /* Removing a profile takes its watch history with it. */
+    removeProfile(id) {
+      state.profiles = (state.profiles || []).filter((x) => x.id !== id);
+      delete state.byProfile[id];
+      if (state.profileId === id) state.profileId = null;
+      if (state.lastProfileId === id) state.lastProfileId = null;
+      save();
+    },
+
+    /* ── Who's signed in ────────────────────────────────────── */
     getProfileId: () => state.profileId,
-    setProfileId(id) { state.profileId = id; save(); },
+    setProfileId(id) { state.profileId = id; state.lastProfileId = id; save(); },
     clearProfile() { state.profileId = null; save(); },
+    getLastProfileId: () => state.lastProfileId,
 
     /* ── My List ────────────────────────────────────────────── */
     getList: () => [...bucket().list],

@@ -98,53 +98,6 @@
   outline: none;
 }
 
-/* ── Notifications ────────────────────────────────────────── */
-.notif { position: relative; }
-.notif__dot {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--red);
-}
-.notif__panel {
-  position: absolute;
-  top: calc(100% + 16px);
-  right: -46px;
-  width: 340px;
-  max-height: 60vh;
-  overflow-y: auto;
-  border-top: 2px solid #fff;
-  background: var(--bg-menu);
-  animation: menuIn .2s ease;
-}
-.notif__panel::before {
-  content: "";
-  position: absolute;
-  top: -12px;
-  right: 46px;
-  border: 6px solid transparent;
-  border-bottom-color: #fff;
-}
-.notif__list li {
-  display: flex;
-  gap: 14px;
-  padding: 14px 16px;
-  border-bottom: 1px solid #333;
-  cursor: pointer;
-}
-.notif__list li:hover { background: #1a1a1a; }
-.notif__list img {
-  width: 100px;
-  aspect-ratio: 16 / 9;
-  border-radius: 2px;
-  object-fit: cover;
-}
-.notif__title { font-size: .82rem; line-height: 1.35; }
-.notif__time  { display: block; margin-top: 5px; font-size: .72rem; color: var(--text-dimmer); }
-
 /* ── Account menu ─────────────────────────────────────────── */
 .account { position: relative; }
 .account__btn {
@@ -324,6 +277,30 @@
 .billboard__arrow--prev { left: 12px; }
 .billboard__arrow--next { right: 12px; }
 
+/* Mute toggle + age rating, flush to the right edge like Netflix */
+.billboard__side {
+  position: absolute;
+  right: 0;
+  bottom: 32%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.billboard__side .preview__mute {
+  order: 1;
+  width: 42px;
+  height: 42px;
+}
+.bb__side-rating {
+  order: 2;
+  padding: 6px 3vw 6px 12px;
+  border-left: 3px solid rgba(255, 255, 255, .65);
+  background: rgba(51, 51, 51, .6);
+  font-size: 1.05rem;
+  color: #fff;
+}
+
 .billboard__dots {
   position: absolute;
   right: var(--page-x);
@@ -458,6 +435,16 @@
   letter-spacing: 2px;
   color: rgba(255, 255, 255, .55);
   text-transform: uppercase;
+}
+
+/* Card preview mute sits clear of the progress bar */
+.card__art .preview__mute {
+  z-index: 3;
+  right: 8px;
+  bottom: 16px;
+  width: 26px;
+  height: 26px;
+  position: absolute;
 }
 
 .card__badge {
