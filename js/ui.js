@@ -42,12 +42,18 @@ const UI = (() => {
      through — so a wrong path costs you a nice tile, never a hole. */
   function art(item, { wide = false, cls = '' } = {}) {
     const src = wide ? (item.backdrop || item.poster) : (item.poster || item.backdrop);
+    const img = src ? `
+      <img class="art__mat" src="${esc(src)}" alt="" aria-hidden="true"
+           loading="lazy" onerror="this.remove()">
+      <img class="art__img" src="${esc(src)}" alt=""
+           loading="lazy" onerror="this.remove()">` : '';
+
     return `<div class="${cls} art" style="${artStyle(item)}">
               <div class="card__stamp">
                 <b>${esc(item.title)}</b>
-                <small>${item.placeholder ? 'Placeholder' : 'SoodFlix'}</small>
+                <small>SoodFlix</small>
               </div>
-              ${src ? `<img class="art__img" src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+              ${img}
             </div>`;
   }
 
@@ -129,12 +135,16 @@ const UI = (() => {
     el.setAttribute('style', artStyle(item));      // fallback underneath
     const src = item.backdrop || item.poster;
     if (src) {
-      const img = document.createElement('img');
-      img.className = 'art__img';
-      img.src = src;
-      img.alt = '';
-      img.addEventListener('error', () => img.remove(), { once: true });
-      el.appendChild(img);
+      /* Black mat first, sharp copy on top — see .art__mat. */
+      ['art__mat', 'art__img'].forEach((cls) => {
+        const img = document.createElement('img');
+        img.className = cls;
+        img.src = src;
+        img.alt = '';
+        if (cls === 'art__mat') img.setAttribute('aria-hidden', 'true');
+        img.addEventListener('error', () => img.remove(), { once: true });
+        el.appendChild(img);
+      });
     }
     return el;
   }
@@ -258,7 +268,7 @@ const UI = (() => {
       n: i + 1,
       title: `Episode ${i + 1}`,
       dur: `${38 + i * 4}m`,
-      desc: 'Episode placeholder — add an `episodes` array to this title in js/data.js.',
+      desc: 'Coming soon to SoodFlix.',
       video: item.video || '',
       thumb: item.poster || '',
     }));

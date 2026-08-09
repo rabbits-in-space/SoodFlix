@@ -83,6 +83,20 @@ episodes: [
 
 Episodes auto-advance, and the "Next episode in 10" card appears near the end.
 
+### Vertical (portrait) content
+
+The layout is 16:9, but phone-shot video works fine. Artwork and previews are
+never cropped — the real thing is contained at its own aspect ratio, and a
+blurred, zoomed copy of itself fills the space around it. Correctly-proportioned
+16:9 material fills the box exactly and never shows the blur, so mixing the two
+is fine.
+
+The player letterboxes portrait video properly too.
+
+Worth knowing: a 9:16 clip in a 16:9 tile only occupies about a third of the
+width. That's unavoidable geometry — if your whole library ends up vertical,
+switching the cards to tall poster shapes would suit it better.
+
 ### Trailers
 
 Set `trailer:` and a muted clip fades in over the artwork in three places:
@@ -90,7 +104,7 @@ Set `trailer:` and a muted clip fades in over the artwork in three places:
 | Where | When | Behaviour |
 | --- | --- | --- |
 | Card | ~0.9s after you hover | Loops until you move away |
-| Billboard | 4s into a slide | Plays once, pausing the carousel until it ends |
+| Billboard | 4s into a slide | Plays once, pausing the carousel — capped at 10s so a long trailer can't stall it |
 | Detail modal | 1.2s after opening | Loops while the modal is open |
 
 A mute toggle appears on the preview while it plays, and your choice is
@@ -214,6 +228,12 @@ season picker, More Like This grid, About section.
 **Player** — play/pause, ±10s, volume, mute, scrubbing with buffer bar and
 time tooltip, playback speed, picture-in-picture, fullscreen, auto-hiding
 chrome, next episode, resume where you left off.
+
+The picture fades up once the video can actually play, and a spinner covers any
+real wait. Both are driven by media events (`waiting`, `playing`, `stalled`)
+rather than a timer — so locally, where playback starts instantly, the spinner
+never gets a chance to appear, and over a slow connection it stays for exactly
+as long as the buffering takes.
 
 Keyboard: `space`/`k` play-pause · `←`/`→` skip 10s · `↑`/`↓` volume ·
 `f` fullscreen · `m` mute · `esc` exit.

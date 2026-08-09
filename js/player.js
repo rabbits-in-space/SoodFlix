@@ -59,6 +59,10 @@ const Player = (() => {
     document.body.classList.add('is-locked');
     el.upnext.hidden = true;
 
+    /* Reset the loading state for whatever we're about to play. */
+    el.root.classList.remove('is-ready');
+    buffering(false);
+
     if (!src) {
       el.missing.hidden = false;
       el.root.classList.add('is-empty');
@@ -71,6 +75,7 @@ const Player = (() => {
 
     el.missing.hidden = true;
     el.root.classList.remove('is-empty');
+    buffering(true);            // until the media says otherwise
     el.video.src = src;
     el.video.load();
 
@@ -96,7 +101,7 @@ const Player = (() => {
     el.video.removeAttribute('src');
     el.video.load();
     el.root.hidden = true;
-    el.root.classList.remove('is-playing');
+    el.root.classList.remove('is-playing', 'is-ready', 'is-buffering');
     document.body.classList.remove('is-locked');
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     const finished = current;
@@ -157,6 +162,27 @@ const Player = (() => {
     el.tip.textContent = fmt(r * (el.video.duration || 0));
     el.tip.style.left = `${r * 100}%`;
   });
+
+  /* ── Buffering ────────────────────────────────────────────────
+     Tied to what the media element actually reports, so on a fast
+     connection the spinner never gets a chance to appear, and on a
+     slow one it stays for exactly as long as the wait lasts. */
+  const buffering = (on) => el.root.classList.toggle('is-buffering', !!on);
+
+  const ready = () => {
+    buffering(false);
+    el.root.classList.add('is-ready');     // fades the picture up
+  };
+
+  el.video.addEventListener('canplay', ready);
+  el.video.addEventListener('playing', ready);
+  el.video.addEventListener('seeked',  ready);
+  el.video.addEventListener('waiting', () => buffering(true));
+  el.video.addEventListener('stalled', () => buffering(true));
+  el.video.addEventListener('seeking', () => {
+    if (el.video.readyState < 3) buffering(true);
+  });
+  el.video.addEventListener('error', () => buffering(false));
 
   /* ── Wiring ───────────────────────────────────────────────── */
   el.video.addEventListener('play',  () => { el.root.classList.add('is-playing'); wake(); });

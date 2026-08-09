@@ -234,9 +234,14 @@
 <div class="player" id="player" hidden>
   <video id="video" class="player__video" playsinline></video>
 
+  <!-- Shown only while the video genuinely isn't ready to play -->
+  <div class="player__spinner" id="playerSpinner" aria-hidden="true"><span></span></div>
+
+  <!-- Shown when a title has no video attached. Deliberately says
+       nothing about file paths — this is a viewer-facing screen. -->
   <div class="player__missing" id="playerMissing" hidden>
-    <h2>No video file attached yet</h2>
-    <p>Drop your file into <code>videos/</code> and set its <code>video:</code> path in <code>js/data.js</code>.</p>
+    <h2>Not available yet</h2>
+    <p>This title hasn't been added to SoodFlix yet. Check back soon.</p>
   </div>
 
   <div class="player__ui" id="playerUI">

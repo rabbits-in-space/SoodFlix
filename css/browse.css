@@ -410,7 +410,8 @@
   background-position: center;
   background-size: cover;
 }
-.card__art img { width: 100%; height: 100%; object-fit: cover; }
+/* Sizing and fit for the artwork layers live in base.css
+   (.art__img / .art__mat) — a rule here would outrank them. */
 
 /* Title stamped on placeholder / poster-less art */
 .card__stamp {
@@ -530,6 +531,9 @@
    The numeral is sized to stand as tall as the poster beside it,
    so --rank-size is retuned at every breakpoint alongside --per. */
 .row--top10 { --per: 5; --rank-size: 20vw; }
+/* A little more air under this heading than other rows get — the
+   numerals come within a few pixels of it even once centred. */
+.row--top10 .row__head { padding-bottom: 1.1em; }
 .row--top10 .card { display: flex; align-items: center; }
 .row--top10 .card__inner { flex: 0 0 54%; margin-left: auto; }
 .row--top10 .card__art { aspect-ratio: 2 / 3; }
@@ -544,9 +548,19 @@
   paint-order: stroke fill;
   user-select: none;
   pointer-events: none;
+
+  /* The line box is 0.74em but the font's ascent is ~0.95em, so the
+     digit sits high in its box and its ink spilled out of the top —
+     far enough to touch the descenders of the row heading above.
+     Measured: 11px over the top, 24px of slack left at the bottom.
+     This nudge re-centres the ink in the box. In em so it holds at
+     every --rank-size breakpoint. */
+  transform: translateY(.051em);
 }
-/* "10" is twice as wide as a single digit — pull it back in. */
-.card__rank--wide { font-size: calc(var(--rank-size) * .55); }
+/* "10" is twice as wide as a single digit. Measured: at .55 it came to
+   151px against a 139px column and spilled into the card beside it,
+   so .50 is what actually fits. */
+.card__rank--wide { font-size: calc(var(--rank-size) * .5); }
 .row--top10 .card.is-hovered .card__inner { transform: scale(1.24); }
 
 /* ── Row arrows + page indicator ──────────────────────────── */

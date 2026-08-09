@@ -479,7 +479,7 @@
         showProfileGate(true);
         break;
       default:
-        toast('That screen is a placeholder.');
+        toast('Coming soon.');
     }
   });
 
@@ -573,6 +573,7 @@
     bbStopPreview = Preview.play(slides[bbIndex], item, {
       delay: 4000,
       loop: false,
+      maxMs: 10000,          /* a long trailer shouldn't stall the carousel */
       buttonHost: $('billboardSide'),
       onStart: () => clearInterval(bbTimer),
       onEnd: restartBillboard,
@@ -609,7 +610,10 @@
         }));
       case 'mylist': {
         const items = Store.getList().map(byId).filter(Boolean);
-        return [{ id: 'v-mylist', title: 'My List', type: 'standard', items, empty: 'Titles you add to My List land here. Hover a card and press +.' }];
+        return [{
+          id: 'v-mylist', title: 'My List', type: 'standard', items,
+          empty: 'Titles you add to My List will appear here.',
+        }];
       }
       default:
         return SOODFLIX.rows.map(resolveRow);
@@ -814,7 +818,10 @@
   function play(item, index) {
     Preview.stopAll();          // no trailer murmuring under the player
     const it = withEpisodes(item);
-    Player.open(it, index !== undefined ? index : (it.episodes.length ? 0 : -1));
+    /* `episodes` is optional in data.js — a film needn't declare it,
+       so never assume the array exists. */
+    const eps = it.episodes || [];
+    Player.open(it, index !== undefined ? index : (eps.length ? 0 : -1));
   }
 
   function handleAction(act, item, card) {
@@ -842,21 +849,34 @@
     }
   }
 
-  /* Repaint just the buttons on one card, no full re-render. */
+  /* Repaint the +/like buttons without a full re-render.
+
+     One title can sit in several rows at once — the billboard film
+     also appears in Trending, Top 10 and Only on SoodFlix — so every
+     card showing it has to update, not just the one that was clicked.
+     Otherwise the others keep showing "+" for something already in
+     My List. `card` is passed separately because the modal hands us
+     its own container, which isn't a .card. */
   function refreshCardState(item, card) {
-    if (!card) return;
     const listed = Store.inList(item.id);
     const rating = Store.getRating(item.id);
-    const listBtn = qs('[data-act="list"]', card);
-    if (listBtn) {
-      listBtn.classList.toggle('is-on', listed);
-      listBtn.innerHTML = listed ? UI.ICON.check : UI.ICON.plus;
-      listBtn.setAttribute('aria-label', listed ? 'Remove from My List' : 'Add to My List');
-    }
-    const up = qs('[data-act="up"]', card);
-    const down = qs('[data-act="down"]', card);
-    if (up) up.classList.toggle('is-on', rating === 1);
-    if (down) down.classList.toggle('is-on', rating === -1);
+
+    const targets = new Set(
+      document.querySelectorAll(`.card[data-id="${CSS.escape(item.id)}"]`));
+    if (card) targets.add(card);
+
+    targets.forEach((root) => {
+      const listBtn = qs('[data-act="list"]', root);
+      if (listBtn) {
+        listBtn.classList.toggle('is-on', listed);
+        listBtn.innerHTML = listed ? UI.ICON.check : UI.ICON.plus;
+        listBtn.setAttribute('aria-label', listed ? 'Remove from My List' : 'Add to My List');
+      }
+      const up = qs('[data-act="up"]', root);
+      const down = qs('[data-act="down"]', root);
+      if (up) up.classList.toggle('is-on', rating === 1);
+      if (down) down.classList.toggle('is-on', rating === -1);
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -899,7 +919,7 @@
         return;
       }
       if (ep) {
-        const idx = withEpisodes(item).episodes
+        const idx = (withEpisodes(item).episodes || [])
           .findIndex((x) => String(x.n) === ep.dataset.ep);
         closeModal();
         play(item, idx);

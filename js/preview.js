@@ -70,7 +70,10 @@ const Preview = (() => {
      Returns a teardown function. Call it and everything is undone.
      ---------------------------------------------------------- */
   function play(host, item, opts = {}) {
-    const { delay = 0, loop = true, buttonHost = null, onStart, onEnd } = opts;
+    const {
+      delay = 0, loop = true, buttonHost = null, onStart, onEnd,
+      maxMs = 0,          /* stop after this long even mid-clip */
+    } = opts;
 
     const candidates = sources(item);
 
@@ -78,11 +81,15 @@ const Preview = (() => {
     let btn = null;
     let timer = null;
     let watchdog = null;
+    let cap = null;
     let index = 0;
     let done = false;
+    let finished = false;
 
     function dropVideo() {
       clearTimeout(watchdog);
+      clearTimeout(cap);
+      if (host) host.classList.remove('is-previewing');   // artwork returns
       if (!video) return;
       video.pause();
       video.removeAttribute('src');
@@ -111,6 +118,21 @@ const Preview = (() => {
       else teardown();
     }
 
+    /* Reached the end, or hit maxMs — fade out and hand back to the
+       caller. Guarded because 'ended' and the cap can both fire. */
+    function finish() {
+      if (finished || done) return;
+      finished = true;
+      clearTimeout(cap);
+      if (video) video.classList.remove('is-in');
+      /* Dropped here rather than in teardown so the still artwork
+         fades back up as the video fades down — a cross-fade instead
+         of the picture popping back after a gap. */
+      if (host) host.classList.remove('is-previewing');
+      if (onEnd) onEnd();
+      setTimeout(teardown, 400);         // let it fade before removing
+    }
+
     /* The mute toggle only appears once something is actually playing,
        so a preview that never starts leaves no stray button behind. */
     function showButton() {
@@ -134,10 +156,24 @@ const Preview = (() => {
          candidate, and if there isn't one the artwork just stays. */
       video.addEventListener('error', fail, { once: true });
 
+      /* Once we know the clip's real shape, decide whether it needs
+         its edges softened — only if it's narrower than the space
+         it's playing in. Full-bleed video is left alone. */
+      video.addEventListener('loadedmetadata', () => {
+        const box = host.getBoundingClientRect();
+        if (!video.videoWidth || !box.height) return;
+        const clip = video.videoWidth / video.videoHeight;
+        const space = box.width / box.height;
+        if (clip < space - 0.02) video.classList.add('is-narrow');
+      }, { once: true });
+
       video.addEventListener('canplay', () => {
         clearTimeout(watchdog);
         video.classList.add('is-in');
+        host.classList.add('is-previewing');   // still artwork steps back
         showButton();
+        /* Long trailers shouldn't hold the billboard hostage. */
+        if (maxMs) cap = setTimeout(finish, maxMs);
       }, { once: true });
 
       /* A file served fine but undecodable never fires 'error' — it
@@ -146,13 +182,7 @@ const Preview = (() => {
         if (video && !video.classList.contains('is-in')) fail();
       }, 8000);
 
-      if (!loop) {
-        video.addEventListener('ended', () => {
-          video.classList.remove('is-in');
-          if (onEnd) onEnd();
-          setTimeout(teardown, 400);     // let it fade before removing
-        }, { once: true });
-      }
+      if (!loop) video.addEventListener('ended', finish, { once: true });
 
       host.appendChild(video);
       playing.add(video);

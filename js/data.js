@@ -85,9 +85,14 @@ function placeholders(prefix, count, opts = {}) {
     ['Drama', 'Suspenseful'], ['Comedy', 'Feel-Good'], ['Action', 'Exciting'],
     ['Docuseries', 'Inspiring'], ['Sci-Fi', 'Mind-Bending'], ['Thriller', 'Dark'],
   ];
+  /* `start` shifts the numbering. Needed where a real title takes the
+     first slot — in Top 10 the placeholders have to begin at 2, or
+     every card reads one behind the rank printed beside it. */
+  const from = opts.start || 1;
+
   return Array.from({ length: count }, (_, i) => ({
-    id: `${prefix}-${i + 1}`,
-    title: `${opts.label || 'Coming Soon'} ${i + 1}`,
+    id: `${prefix}-${from + i}`,
+    title: `${opts.label || 'Coming Soon'} ${from + i}`,
     kind: opts.kind || (i % 3 === 0 ? 'film' : 'series'),
     placeholder: true,
     video: '',
@@ -99,7 +104,7 @@ function placeholders(prefix, count, opts = {}) {
     match: 71 + ((i * 7) % 28),
     genres: GENRES[i % GENRES.length],
     cast: ['—', '—', '—'],
-    desc: 'Placeholder slot. Swap this entry for one of your own videos in js/data.js.',
+    desc: 'Coming soon to SoodFlix.',
     badge: opts.badge && i < 3 ? opts.badge : '',
     isNew: !!opts.isNew,
     episodes: [],
@@ -124,6 +129,27 @@ const AVATAR_COLOURS = [
   ['#27ae60', '#08301a'], ['#9b51e0', '#2a0f45'], ['#f2994a', '#452405'],
   ['#eb5757', '#3d0d0d'], ['#56ccf2', '#0a3040'],
 ];
+
+
+/* ── Your titles ──────────────────────────────────────────────
+   Declaring a title as its own const lets you drop it into the
+   billboard AND any number of rows while it stays ONE title — same
+   watch progress, same My List entry, same thumbs, everywhere it
+   appears. Copying the object instead would split all of that in
+   two, because state is keyed on `id`. ---------------------- */
+const DAY_IN_THE_LIFE = {
+  id: 'day-in-the-life-of-sood',
+  title: 'Day in the life of Sood',
+  kind: 'film',
+  ...media('day-in-the-life-of-sood'),
+  rank: 1,                    // the "#1 in Borker Today" flag
+  badge: 'NEW',               // little red corner flag on the card
+  year: 2026, rating: 'PG', duration: '3m 40s',
+  match: 98,
+  genres: ['Drama', 'Mystery'],
+  cast: ['Aiden Starr', 'Kian Sood', 'Declan Finney', 'Benji Moore'],
+  desc: 'The premiering movie Day in the life of Sood is a gripping tale of a White boy who turns Indian.',
+};
 
 
 const SOODFLIX = {
@@ -159,20 +185,7 @@ const SOODFLIX = {
      `backdrop` is the wide background image; leave it blank for the
      generated gradient art. ---------------------------------- */
   featured: [
-    {
-      id: 'feat-1',
-      title: 'Day in the life of Sood',
-      kind: 'movie',
-      placeholder: true,
-      video: '', trailer: '', backdrop: '',
-      rank: 1,
-      year: 2026, rating: 'PG', duration: 'Single movie',
-      match: 98,
-      genres: ['Drama', 'Mystery'],
-      cast: ['Aiden Starr, Kian Sood, Declan Finney, Benji Moore'],
-      desc: 'The premiering movie Day in the life of Sood is a gripping tale of a White boy who turns Indian. ',
-      episodes: [],
-    },
+    DAY_IN_THE_LIFE,
     {
       id: 'feat-2',
       title: 'Much ado about Soody',
@@ -183,7 +196,7 @@ const SOODFLIX = {
       match: 95,
       genres: ['Action', 'Adventure'],
       cast: ['—'],
-      desc: 'The billboard rotates every eight seconds. Use the arrows or the dashes on the right to move through it by hand.',
+      desc: 'Coming soon to SoodFlix.',
       episodes: [],
     },
     {
@@ -197,12 +210,12 @@ const SOODFLIX = {
       match: 91,
       genres: ['Comedy', 'Feel-Good'],
       cast: ['—'],
-      desc: 'Each slide can carry a Top 10 rank flag, an age rating and its own genre list — exactly like the real thing.',
+      desc: 'Coming soon to SoodFlix.',
       episodes: [],
     },
     {
       id: 'feat-4',
-      title: 'Fourth Feature',
+      title: 'Stranger Soods',
       kind: 'film',
       placeholder: true,
       video: '', trailer: '', backdrop: '',
@@ -210,20 +223,20 @@ const SOODFLIX = {
       match: 88,
       genres: ['Thriller', 'Dark'],
       cast: ['—'],
-      desc: 'More Info opens the full detail panel with episodes, cast and similar titles. Play jumps straight into the player.',
+      desc: 'Coming soon to SoodFlix.',
       episodes: [],
     },
     {
       id: 'feat-5',
-      title: 'Fifth Feature',
+      title: 'Sood wars: The Rise of Sood',
       kind: 'series',
       placeholder: true,
       video: '', trailer: '', backdrop: '',
-      year: 2026, rating: 'U', duration: '2 Seasons',
+      year: 2026, rating: 'U', duration: 'prequel',
       match: 84,
-      genres: ['Documentary', 'Inspiring'],
+      genres: ['Sci-Fi', 'Mind-Bending'],
       cast: ['—'],
-      desc: 'Add or remove slides by editing the `featured` array — the dots and arrows adjust themselves.',
+      desc: 'Coming soon to SoodFlix.',
       episodes: [],
     },
   ],
@@ -242,19 +255,29 @@ const SOODFLIX = {
       id: 'trending',
       title: 'Trending Now',
       type: 'standard',
-      items: placeholders('trend', 12, { label: 'Trending', badge: 'NEW', isNew: true }),
+      /* Real titles first, placeholders filling the rest of the row. */
+      items: [
+        DAY_IN_THE_LIFE,
+        ...placeholders('trend', 12, { label: 'Trending', badge: 'NEW', isNew: true }),
+      ],
     },
     {
       id: 'top10',
       title: 'Top 10 in Borker Today',
       type: 'top10',
-      items: placeholders('top', 10, { label: 'Top' }),
+      items: [
+        DAY_IN_THE_LIFE,
+        ...placeholders('top', 9, { label: 'Top', start: 2 }),
+      ],
     },
     {
       id: 'mysood',
       title: 'Only on SoodFlix',
       type: 'standard',
-      items: placeholders('sood', 12, { label: 'Original', badge: 'SOODFLIX' }),
+      items: [
+        DAY_IN_THE_LIFE,
+        ...placeholders('sood', 12, { label: 'Original', badge: 'SOODFLIX' }),
+      ],
     },
     {
       id: 'new',
@@ -282,7 +305,7 @@ const SOODFLIX = {
     },
     {
       id: 'because',
-      title: 'Because You Watched Placeholder 1',
+      title: 'Because You Watched Day in the life of Sood',
       type: 'standard',
       items: placeholders('bec', 12, { label: 'Similar' }),
     },
