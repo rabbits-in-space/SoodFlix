@@ -13,6 +13,13 @@
 <link rel="stylesheet" href="css/base.css" />
 <link rel="stylesheet" href="css/browse.css" />
 <link rel="stylesheet" href="css/overlays.css" />
+
+<!-- Vercel Web Analytics + Speed Insights. These paths only resolve
+     once deployed to Vercel, so they 404 harmlessly when you run the
+     site locally. Both also need switching on in the Vercel dashboard
+     (Project → Analytics → Enable) before they record anything. -->
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
 <body>
 
@@ -113,8 +120,9 @@
   <header class="nav" id="nav">
     <div class="nav__left">
       <a class="brand" href="#" data-nav="home">SOODFLIX</a>
+      <!-- No "Home" link — the SOODFLIX wordmark to the left is the
+           home button (it carries data-nav="home"). -->
       <nav class="nav__links" id="navLinks">
-        <a href="#" class="nav__link is-active" data-nav="home">Home</a>
         <a href="#" class="nav__link" data-nav="series">TV Shows</a>
         <a href="#" class="nav__link" data-nav="films">Movies</a>
         <a href="#" class="nav__link" data-nav="new">New &amp; Popular</a>
@@ -208,7 +216,7 @@
     <nav class="footer__links">
       <a href="#">Audio Description</a><a href="#">Help Centre</a><a href="#">Gift Cards</a><a href="#">Media Centre</a>
       <a href="#">Investor Relations</a><a href="#">Jobs</a><a href="#">Terms of Use</a><a href="#">Privacy</a>
-      <a href="#">Legal Notices</a><a href="#">Cookie Preferences</a><a href="#">Corporate Information</a><a href="#">Contact Us</a>
+      <a href="legal.html">Legal Notices</a><a href="#">Cookie Preferences</a><a href="#">Corporate Information</a><a href="#">Contact Us</a>
     </nav>
     <button class="footer__code">Service Code</button>
     <p class="footer__copy">© 1997-<span id="year"></span> Richard Li.</p>
@@ -239,8 +247,8 @@
   <!-- Shown when a title has no video attached. Deliberately says
        nothing about file paths — this is a viewer-facing screen. -->
   <div class="player__missing" id="playerMissing" hidden>
-    <h2>Not available yet</h2>
-    <p>This title hasn't been added to SoodFlix yet. Check back soon.</p>
+    <h2 id="playerNoticeTitle">Not available yet</h2>
+    <p id="playerNoticeText">This title hasn't been added to SoodFlix yet. Check back soon.</p>
   </div>
 
   <div class="player__ui" id="playerUI">

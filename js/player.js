@@ -10,6 +10,7 @@ const Player = (() => {
 
   const el = {
     root: $('player'), video: $('video'), ui: $('playerUI'), missing: $('playerMissing'),
+    noticeTitle: $('playerNoticeTitle'), noticeText: $('playerNoticeText'),
     back: $('playerBack'), show: $('playerShow'), ep: $('playerEp'), centerTitle: $('playerCenterTitle'),
     bigPlay: $('bigPlay'), play: $('btnPlay'), b10: $('btnBack10'), f10: $('btnFwd10'),
     mute: $('btnMute'), vol: $('volSlider'), now: $('timeNow'), total: $('timeTotal'),
@@ -64,8 +65,8 @@ const Player = (() => {
     buffering(false);
 
     if (!src) {
-      el.missing.hidden = false;
-      el.root.classList.add('is-empty');
+      notice('Not available yet',
+             "This title hasn't been added to SoodFlix yet. Check back soon.");
       el.video.removeAttribute('src');
       el.video.load();
       el.root.classList.remove('is-playing');
@@ -169,6 +170,17 @@ const Player = (() => {
      slow one it stays for exactly as long as the wait lasts. */
   const buffering = (on) => el.root.classList.toggle('is-buffering', !!on);
 
+  /* Put a message on screen instead of leaving the viewer staring at
+     black. Used both for titles with no video attached and for a file
+     that genuinely fails to load. */
+  function notice(title, text) {
+    el.noticeTitle.textContent = title;
+    el.noticeText.textContent = text;
+    el.missing.hidden = false;
+    el.root.classList.add('is-empty');   // hides the play button and controls
+    buffering(false);
+  }
+
   const ready = () => {
     buffering(false);
     el.root.classList.add('is-ready');     // fades the picture up
@@ -182,7 +194,13 @@ const Player = (() => {
   el.video.addEventListener('seeking', () => {
     if (el.video.readyState < 3) buffering(true);
   });
-  el.video.addEventListener('error', () => buffering(false));
+  /* A file that can't be loaded or decoded used to leave a silent black
+     screen — the spinner was hidden and nothing replaced it. Say so. */
+  el.video.addEventListener('error', () => {
+    if (el.root.hidden) return;
+    notice("Can't play this title",
+           'Something went wrong loading the video. Please try again.');
+  });
 
   /* ── Wiring ───────────────────────────────────────────────── */
   el.video.addEventListener('play',  () => { el.root.classList.add('is-playing'); wake(); });

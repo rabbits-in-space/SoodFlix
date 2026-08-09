@@ -253,7 +253,7 @@ const UI = (() => {
         </div>` : ''}
 
       <div class="modal__section modal__about">
-        <h3>About ${esc(item.title)}</h3>
+        <h3>About, ${esc(item.title)}</h3>
         <dl class="modal__facts">
           <div><dt>Cast: </dt><dd>${(item.cast || ['—']).join(', ')}</dd></div>
           <div><dt>Genres: </dt><dd>${(item.genres || []).join(', ')}</dd></div>
