@@ -1,19 +1,16 @@
-# ── Video files ───────────────────────────────────────────────
-# GitHub hard-rejects any single file over 100MB and warns above
-# 50MB, so the videos stay on your machine and out of the repo.
-# The site still plays them locally — only git ignores them.
-videos/*
-!videos/README.txt
-
-# Same for video dropped anywhere else in the project
-*.mp4
-*.m4v
-*.mov
-*.mkv
-*.webm
-*.avi
-*.wmv
-*.flv
+# ── Videos are committed ──────────────────────────────────────
+# They used to be ignored and served from a GitHub release, but
+# GitHub labels release assets application/octet-stream and Safari
+# refuses to play media with that content type. Vercel serves files
+# from the repo as video/mp4, which iPhones are happy with.
+#
+# Keep an eye on size: GitHub hard-rejects any single file over
+# 100MB and warns above 50MB. Git also keeps every version of a
+# binary forever, so re-exporting a film adds another full copy to
+# history rather than replacing the old one.
+#
+# If the library outgrows this, Cloudflare R2 is the next step:
+# correct content types, and egress is free.
 
 # ── OS / editor cruft ─────────────────────────────────────────
 Thumbs.db

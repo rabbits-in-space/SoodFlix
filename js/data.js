@@ -137,25 +137,14 @@ const AVATAR_COLOURS = [
    watch progress, same My List entry, same thumbs, everywhere it
    appears. Copying the object instead would split all of that in
    two, because state is keyed on `id`. ---------------------- */
-/* Video files are gitignored (too big for a repo), so they're served
-   from a GitHub release instead of videos/. These two lines MUST stay
-   below the media() spread — later keys win, and if they sat above it
-   media() would overwrite them with local videos/ paths.
-
-   Artwork still comes from media(), because images do live in the repo.
-
-   Verified: the release CDN answers range requests with 206, so
-   scrubbing works, and browsers decode them fine despite GitHub
-   labelling them application/octet-stream. -------------------- */
-const RELEASE = 'https://github.com/rabbits-in-space/SoodFlix/releases/download/media-v1';
-
 const DAY_IN_THE_LIFE = {
   id: 'day-in-the-life-of-sood',
   title: 'Day in the life of Sood',
   kind: 'film',
+  /* media() handles all four paths — videos live in the repo now, so
+     nothing needs overriding. (They were briefly served from a GitHub
+     release, but Safari won't play media labelled octet-stream.) */
   ...media('day-in-the-life-of-sood'),
-  video:   `${RELEASE}/day-in-the-life-of-sood.mp4`,
-  trailer: `${RELEASE}/day-in-the-life-of-sood-trailer.mp4`,
   rank: 1,                    // the "#1 in Borker Today" flag
   badge: 'NEW',               // little red corner flag on the card
   year: 2026, rating: 'PG', duration: '3m 40s',
