@@ -386,21 +386,25 @@ ul { list-style: none; margin: 0; padding: 0; }
    holds still for a beat, then takes a single highlight sweep in the
    last second before the zoom-through.
 
-   Both timings come off --intro-hold, which app.js sets to the clip's
-   real length, so the choreography fits whatever mp3 you drop in:
-     rise   = hold - 2.8s
-     still  = 0.6s
-     sweep  = 1.8s, ending 0.4s before the end
-     settle = 0.4s before the zoom-through
+   Every phase is a PROPORTION of --intro-hold, which app.js sets to
+   the clip's real length:
 
-   The max() floors keep it sane if someone drops in a very short
-   clip — without them a 2.6s intro would ask for a negative rise. */
+     rise   45%  ─┐
+     still  10%   ├─ so the sweep starts at 55% and ends at 88%
+     sweep  33%  ─┘
+     settle 12%
+
+   Proportions rather than fixed subtractions, so the balance holds at
+   any clip length. The previous version subtracted constants, which
+   left the sweep taking longer than the entrance on a short clip —
+   and below ~3.7s it would have asked the sweep to start BEFORE the
+   rise had finished. Percentages can't invert the order. */
 .splash.is-running .splash__word {
   animation:
-    splashRise  max(900ms, calc(var(--intro-hold, 2600ms) - 2800ms))
+    splashRise  calc(var(--intro-hold, 2600ms) * .45)
                 cubic-bezier(.16, .84, .3, 1) forwards,
-    splashSweep 1800ms ease-in-out
-                max(500ms, calc(var(--intro-hold, 2600ms) - 2200ms)) forwards;
+    splashSweep calc(var(--intro-hold, 2600ms) * .33) ease-in-out
+                calc(var(--intro-hold, 2600ms) * .55) forwards;
 }
 
 @keyframes splashRise {
