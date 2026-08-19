@@ -259,15 +259,83 @@
   /* ── Profile editor ───────────────────────────────────────── */
   let editing = null;          // the profile being edited, null when adding
   let chosenColour = 0;
+  let customAvatar = null;     // data URI of an uploaded photo, or null
+
+  /* Photos are stored as a data URI in the same `avatar` field the
+     generated SVG faces use, which keeps everything else unchanged.
+
+     They MUST be shrunk first. localStorage is only about 5MB and a
+     phone photo can be several MB on its own as a data URI, so storing
+     one raw would blow the whole quota — every profile, list and watch
+     position with it. Cropped square and resized to 300px it lands
+     around 25KB. Nothing is uploaded anywhere; this is all local. */
+  const AVATAR_PX = 300;
+
+  function fileToAvatar(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !file.type.startsWith('image/')) {
+        return reject(new Error('That file is not an image.'));
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("That file couldn't be read."));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("That image couldn't be opened."));
+        img.onload = () => {
+          /* Centre-crop to a square so portraits and landscapes both
+             fill the tile without squashing. */
+          const side = Math.min(img.width, img.height);
+          const canvas = document.createElement('canvas');
+          canvas.width = canvas.height = AVATAR_PX;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(
+            img,
+            (img.width - side) / 2, (img.height - side) / 2, side, side,
+            0, 0, AVATAR_PX, AVATAR_PX,
+          );
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  $('editorUpload').addEventListener('click', () => $('editorFile').click());
+
+  $('editorFile').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';                 // so the same file can be re-picked
+    if (!file) return;
+    try {
+      customAvatar = await fileToAvatar(file);
+      renderSwatches();
+      paintEditorAvatar();
+    } catch (err) {
+      const box = $('editorError');
+      box.textContent = err.message;
+      box.hidden = false;
+    }
+  });
+
+  $('editorClearPhoto').addEventListener('click', () => {
+    customAvatar = null;
+    renderSwatches();
+    paintEditorAvatar();
+  });
 
   function openEditor(p) {
     editing = p;
     chosenColour = 0;
+    customAvatar = null;
 
     if (p) {
-      /* Land on the colour this profile already uses, if we can tell. */
+      /* Land on the colour this profile already uses. If it matches no
+         palette entry it's an uploaded photo, so carry that through. */
       const i = AVATAR_COLOURS.findIndex((c) => p.avatar === avatar(c[0], c[1]));
       chosenColour = i === -1 ? 0 : i;
+      if (i === -1 && p.avatar) customAvatar = p.avatar;
     }
 
     $('editorTitle').textContent = p ? 'Edit Profile' : 'Add Profile';
@@ -293,11 +361,13 @@
     AVATAR_COLOURS.forEach((c, i) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = i === chosenColour ? 'is-on' : '';
+      /* No colour reads as selected while a photo is in use. */
+      b.className = (!customAvatar && i === chosenColour) ? 'is-on' : '';
       b.setAttribute('aria-label', `Avatar colour ${i + 1}`);
       b.innerHTML = `<img src="${avatar(c[0], c[1])}" alt="" />`;
       b.addEventListener('click', () => {
         chosenColour = i;
+        customAvatar = null;        // picking a colour drops the photo
         renderSwatches();
         paintEditorAvatar();
       });
@@ -307,7 +377,9 @@
 
   function paintEditorAvatar() {
     const c = AVATAR_COLOURS[chosenColour];
-    $('editorAvatar').src = avatar(c[0], c[1]);
+    $('editorAvatar').src = customAvatar || avatar(c[0], c[1]);
+    $('editorClearPhoto').hidden = !customAvatar;
+    $('editorUpload').textContent = customAvatar ? 'Change photo' : 'Upload photo';
   }
 
   $('editorForm').addEventListener('submit', (e) => {
@@ -332,7 +404,11 @@
     }
 
     const c = AVATAR_COLOURS[chosenColour];
-    const fields = { name, avatar: avatar(c[0], c[1]), kids: $('editorKids').checked };
+    const fields = {
+      name,
+      avatar: customAvatar || avatar(c[0], c[1]),
+      kids: $('editorKids').checked,
+    };
 
     if (editing) {
       const updated = Store.updateProfile(editing.id, fields);

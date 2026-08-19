@@ -80,6 +80,12 @@
       <div class="editor__row">
         <div class="editor__avatar">
           <img id="editorAvatar" alt="" />
+          <button type="button" class="editor__photo-btn" id="editorUpload">Upload photo</button>
+          <button type="button" class="editor__photo-btn editor__photo-btn--clear"
+                  id="editorClearPhoto" hidden>Remove photo</button>
+          <!-- Never submitted anywhere: the file is read in the browser,
+               shrunk on a canvas and kept in localStorage. -->
+          <input type="file" id="editorFile" accept="image/*" hidden />
         </div>
         <div class="editor__fields">
           <label class="editor__label" for="editorName">Name</label>
